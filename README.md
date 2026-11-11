@@ -5,7 +5,9 @@ A full-stack React + Express prototype that combines a clearly labeled simulated
 ## Architecture Overview
 
 - **Backend (`server/index.js`)**: Express API that authenticates with PayPal Sandbox OAuth2, retrieves verified order state from PayPal Orders v2 (`GET /api/paypal/orders/:orderId`), supports explicit checkout order creation and user-confirmed capture, and calls Google Gemini (`POST /api/copilot/explain`) with strict JSON schema validation and safety rules.
-- **Preserved Ground Truth**: In `POST /api/copilot/explain`, PayPal order facts are retrieved first. If PayPal lookup succeeds and Gemini fails (`429`, `502`, `503`, `504`, or missing `GEMINI_API_KEY`), the backend returns the error status alongside `verifiedFacts` so the UI keeps PayPal-verified facts visible while reporting AI unavailability.
+- **Hybrid Intelligence & Preserved Ground Truth**: In `POST /api/copilot/explain`, PayPal order facts are retrieved first and analyzed deterministically before calling Gemini:
+  - When PayPal facts are successfully retrieved but Gemini fails (rate limit, timeout, missing key, malformed or schema-invalid response, etc.), the backend switches to the deterministic rule-based fallback (`server/lib/fallbackExplainer.js`) and returns HTTP `200` with `explanationSource: "deterministic_rules"`, `isAiGenerated: false`, `aiFallbackUsed: true`, and `aiError` alongside `verifiedFacts`, `intelligence`, and `explanation`.
+  - PayPal lookup failures do not produce fabricated fallback explanations and instead return the appropriate upstream/validation error status.
 - **Frontend (`client/`)**: Vite + React workspace with two clearly separated experiences:
   - **Real PayPal Sandbox Order** (`CopilotView` / `RealOrderClaritySection`): Live lookup via `POST /api/copilot/explain`, keeping PayPal-verified facts strictly separated from Gemini-generated explanations.
   - **Interactive Demo Mode** (`DashboardView`, `TransactionsView`, Demo Chat): Preloaded synthetic sample records labeled `DEMO DATA`.
@@ -60,7 +62,16 @@ npm install
 npm run dev
 ```
 
-### 3. Build & Lint Verification
+### 3. Automated Tests, Build & Lint Verification
+
+Run the automated test suites (currently **67 server tests** and **9 client tests**, for **76 total**):
+
+```bash
+npm test --prefix server
+npm test --prefix client
+```
+
+Verify syntax, linting, and production build:
 
 ```bash
 node -c server/index.js
@@ -76,4 +87,4 @@ npm --prefix client run build
 - `POST /api/paypal/orders` — Create PayPal Sandbox checkout order
 - `GET /api/paypal/orders/:orderId` — Retrieve and verify PayPal Sandbox order details
 - `POST /api/paypal/orders/:orderId/capture` — Explicitly capture an `APPROVED` PayPal Sandbox order
-- `POST /api/copilot/explain` — Retrieve PayPal Orders v2 facts and generate schema-validated Gemini explanation
+- `POST /api/copilot/explain` — Retrieve PayPal Orders v2 facts, run deterministic transaction intelligence, and generate schema-validated Gemini or deterministic fallback explanations

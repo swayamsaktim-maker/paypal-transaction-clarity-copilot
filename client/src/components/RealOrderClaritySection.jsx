@@ -15,7 +15,10 @@ import { explainOrder, isValidPayPalOrderId } from '../services/apiService';
 import {
   formatTimestamp,
   formatCurrencyAmount,
-  getExplainErrorGuidance
+  getExplainErrorGuidance,
+  getExplanationProvenance,
+  buildIntelligenceViewModel,
+  resolveNextLastSubmittedRequest
 } from '../utils/paypalFormatting';
 
 const DEFAULT_PROMPT = 'Explain the current payment status in simple language.';
@@ -80,6 +83,337 @@ function getCaptureStatusClass(captureStatus) {
   if (norm === 'PENDING') return 'capture-status-pending';
   if (norm === 'DECLINED' || norm === 'FAILED' || norm === 'REFUNDED') return 'capture-status-failed';
   return 'capture-status-neutral';
+}
+
+/**
+ * Compact verified transaction intelligence summary derived deterministically
+ * from PayPal Orders v2 facts (never exposes raw JSON or internal IDs).
+ */
+export function VerifiedIntelligenceSection({ intelligence }) {
+  const vm = buildIntelligenceViewModel(intelligence);
+
+  return (
+    <section
+      className="results-section intelligence-summary-section"
+      aria-label="Verified Transaction Intelligence"
+    >
+      <div className="intelligence-header">
+        <div className="intelligence-title-wrap">
+          <ShieldCheckIcon size={17} className="icon-blue flex-shrink-0" />
+          <div>
+            <h3 className="intelligence-heading">Verified Transaction Intelligence</h3>
+            <p className="intelligence-subheading">
+              Deterministic analysis of verified PayPal order, capture, authorization, and refund records
+            </p>
+          </div>
+        </div>
+        <span className="intelligence-mode-badge">Deterministic Analysis</span>
+      </div>
+
+      {vm.isMissing && (
+        <div className="intelligence-missing-note" role="status">
+          <InfoIcon size={15} className="icon-amber flex-shrink-0" />
+          <span>
+            Detailed transaction intelligence metadata was not returned for this response. Official PayPal facts above and bank settlement boundaries still apply.
+          </span>
+        </div>
+      )}
+
+      <div className="intelligence-grid">
+        <div className="intelligence-item">
+          <span className="intelligence-item-label">Lifecycle Stage</span>
+          <span className="intelligence-item-value intelligence-stage-text">
+            {vm.lifecycleLabel}
+          </span>
+        </div>
+
+        <div className="intelligence-item">
+          <span className="intelligence-item-label">Capture State</span>
+          <div className="intelligence-state-row">
+            <span className={`capture-state-pill capture-state-${vm.captureStateCode}`}>
+              {vm.captureStateLabel}
+            </span>
+          </div>
+          <span className="intelligence-item-hint">{vm.captureStateDetail}</span>
+        </div>
+
+        <div className="intelligence-item">
+          <span className="intelligence-item-label">Authorization Counts</span>
+          <span className="intelligence-item-value">{vm.authorizationSummaryText}</span>
+        </div>
+
+        <div className="intelligence-item">
+          <span className="intelligence-item-label">Capture Counts</span>
+          <span className="intelligence-item-value">{vm.captureSummaryText}</span>
+        </div>
+
+        <div className="intelligence-item">
+          <span className="intelligence-item-label">Refund Counts &amp; Scope</span>
+          <div className="intelligence-state-row">
+            <span className="refund-scope-pill">{vm.refundScopeLabel}</span>
+          </div>
+          <span className="intelligence-item-hint">{vm.refundCountsText}</span>
+        </div>
+
+        <div className="intelligence-item">
+          <span className="intelligence-item-label">Bank Settlement</span>
+          <div className="intelligence-state-row">
+            <span className="settlement-unverified-pill">{vm.bankSettlementLabel}</span>
+          </div>
+          <span className="intelligence-item-hint">{vm.bankSettlementDetail}</span>
+        </div>
+      </div>
+
+      {vm.purchaseUnitNote && (
+        <div className="intelligence-unit-note">
+          <InfoIcon size={14} className="icon-blue flex-shrink-0" />
+          <span>{vm.purchaseUnitNote}</span>
+        </div>
+      )}
+    </section>
+  );
+}
+
+/**
+ * Render Gemini AI or deterministic rule-based explanation with unambiguous
+ * provenance labeling, sanitized fallback notice, and preserved retry controls.
+ */
+export function ExplanationResultsSection({
+  result,
+  error,
+  errorHint,
+  isLoading,
+  activeRequestMeta,
+  retryTargetOrderId,
+  onRetry,
+  onDismissError
+}) {
+  const hasExplanation = Boolean(
+    result?.explanation &&
+    typeof result.explanation === 'object' &&
+    !Array.isArray(result.explanation)
+  );
+  const provenance = getExplanationProvenance(result);
+
+  const sectionClass = provenance.isDeterministic
+    ? 'results-section deterministic-explanation-section'
+    : 'results-section gemini-explanation-section';
+
+  const brandIconClass = provenance.isDeterministic
+    ? 'section-brand-icon deterministic-brand-icon'
+    : 'section-brand-icon gemini-brand-icon';
+
+  const sourcePillClass = provenance.isDeterministic
+    ? 'section-source-pill deterministic-source-pill'
+    : 'section-source-pill gemini-source-pill';
+
+  return (
+    <section
+      className={sectionClass}
+      aria-label={provenance.ariaLabel}
+    >
+      <div className="section-header gemini-section-header">
+        <div className="section-title-group">
+          <div className={brandIconClass} aria-hidden="true">
+            {provenance.isDeterministic ? <ShieldCheckIcon size={20} /> : <SparklesIcon size={20} />}
+          </div>
+          <div>
+            <div className={sourcePillClass}>
+              <span className="source-label">Source:</span>
+              <span className="source-name">{provenance.sourceLabel}</span>
+              <span className="source-type-badge">{provenance.sourceBadge}</span>
+            </div>
+            <h3 className="section-heading">{provenance.heading}</h3>
+          </div>
+        </div>
+
+        <div className={`ai-provenance-status ${provenance.isDeterministic ? 'status-deterministic' : ''}`}>
+          {isLoading ? (
+            <>
+              <RefreshCwIcon size={14} className="icon-purple" />
+              <span>Generating Explanation...</span>
+            </>
+          ) : provenance.isGemini ? (
+            <>
+              <SparklesIcon size={14} className="icon-purple" />
+              <span>{provenance.statusLabel}</span>
+            </>
+          ) : provenance.isDeterministic ? (
+            <>
+              <ShieldCheckIcon size={14} className="icon-teal" />
+              <span>{provenance.statusLabel}</span>
+            </>
+          ) : (
+            <>
+              <AlertCircleIcon size={14} className="icon-amber" />
+              <span>{provenance.statusLabel}</span>
+            </>
+          )}
+        </div>
+      </div>
+
+      {isLoading && (
+        <div className="clarity-loading-card clarity-loading-card-inline" aria-live="polite" aria-busy="true">
+          <div className="loading-pulse-animation" aria-hidden="true">
+            <div className="pulse-ring"></div>
+            <SparklesIcon size={22} className="loading-pulse-icon" />
+          </div>
+          <h4 className="loading-title">Retrying Transaction Explanation</h4>
+          {(activeRequestMeta?.orderId || retryTargetOrderId) && (
+            <p className="loading-order-badge">
+              Retrying Order ID:{' '}
+              <code className="retry-target-code">{activeRequestMeta?.orderId || retryTargetOrderId}</code>
+            </p>
+          )}
+          <p className="loading-subtitle">
+            Verified PayPal Sandbox order facts above remain intact while requesting an updated explanation...
+          </p>
+        </div>
+      )}
+
+      {!isLoading && !hasExplanation && (
+        <div className="clarity-error-card clarity-ai-error-card" role="alert">
+          <div className="error-card-header">
+            <div className="error-icon-box" aria-hidden="true">
+              <AlertCircleIcon size={20} />
+            </div>
+            <div className="error-content">
+              <h4 className="error-title">
+                {error ? 'Transaction Explanation Unavailable' : 'Explanation Not Loaded'}
+              </h4>
+              <p className="error-message">
+                {error?.message || 'Verified PayPal transaction facts are displayed above, but the narrative explanation has not been loaded.'}
+              </p>
+              {retryTargetOrderId && (
+                <p className="retry-target-note">
+                  Retry target (last submitted order):{' '}
+                  <code className="retry-target-code">{retryTargetOrderId}</code>
+                </p>
+              )}
+              {errorHint && <p className="error-hint">{errorHint}</p>}
+            </div>
+          </div>
+          <div className="error-actions-row">
+            <button
+              type="button"
+              onClick={onRetry}
+              disabled={isLoading || !retryTargetOrderId}
+              className="error-retry-btn"
+              aria-label={retryTargetOrderId ? `Retry explanation for order ${retryTargetOrderId}` : 'Retry Explanation'}
+            >
+              <RefreshCwIcon size={14} />
+              <span>Retry Explanation</span>
+            </button>
+            {error && (
+              <button
+                type="button"
+                onClick={onDismissError}
+                className="error-dismiss-btn"
+              >
+                Dismiss Notice
+              </button>
+            )}
+          </div>
+        </div>
+      )}
+
+      {!isLoading && hasExplanation && (
+        <>
+          {provenance.isFallbackUsed && provenance.fallbackNote && (
+            <div className="fallback-info-banner" role="status">
+              <div className="fallback-info-content">
+                <InfoIcon size={16} className="icon-amber flex-shrink-0" />
+                <span className="fallback-info-text">{provenance.fallbackNote}</span>
+              </div>
+              {retryTargetOrderId && typeof onRetry === 'function' && (
+                <button
+                  type="button"
+                  onClick={onRetry}
+                  disabled={isLoading}
+                  className="fallback-retry-btn"
+                  aria-label={`Try Gemini AI again for order ${retryTargetOrderId}`}
+                >
+                  <RefreshCwIcon size={13} />
+                  <span>Try Gemini Again</span>
+                </button>
+              )}
+            </div>
+          )}
+
+          {/* Safety Boundary Notice */}
+          <div className={provenance.isDeterministic ? 'deterministic-safety-banner' : 'gemini-safety-banner'}>
+            <InfoIcon size={15} className="safety-icon flex-shrink-0" />
+            <span className="safety-text">{provenance.safetyText}</span>
+          </div>
+
+          {/* Diagnosis Headline */}
+          <div className={provenance.isDeterministic ? 'deterministic-headline-box' : 'gemini-headline-box'}>
+            <div className="headline-meta">
+              {provenance.isDeterministic ? <ShieldCheckIcon size={15} /> : <SparklesIcon size={15} />}
+              <span className="headline-label">{provenance.headlineLabel}</span>
+            </div>
+            <h4 className="headline-content">{result.explanation.headline}</h4>
+          </div>
+
+          {/* Explanation Summary Card */}
+          <div className="explanation-card summary-card">
+            <div className="card-header-bar">
+              <InfoIcon size={16} className="icon-blue flex-shrink-0" />
+              <h5 className="card-title">Plain-English Status Summary</h5>
+            </div>
+            <p className="card-body-paragraph">{result.explanation.summary}</p>
+          </div>
+
+          {/* Financial Impact Card */}
+          <div className="explanation-card financial-card">
+            <div className="card-header-bar">
+              <AlertTriangleIcon size={16} className="icon-amber flex-shrink-0" />
+              <h5 className="card-title">Financial Movement &amp; Settlement Impact</h5>
+            </div>
+            <p className="card-body-paragraph">{result.explanation.financialImpact}</p>
+          </div>
+
+          {/* Safe Next Steps Card */}
+          <div className="explanation-card steps-card">
+            <div className="card-header-bar">
+              <ShieldCheckIcon size={16} className="icon-emerald flex-shrink-0" />
+              <div>
+                <h5 className="card-title">Recommended Safe Next Steps</h5>
+                <span className="card-subtitle">Factual, safe procedural guidance (non-financial)</span>
+              </div>
+            </div>
+            <div className="steps-list-container">
+              {result.explanation.safeNextSteps.map((step, idx) => (
+                <div key={idx} className="step-list-item">
+                  <span className="step-idx-pill">{idx + 1}</span>
+                  <span className="step-description">{step}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Limitations & Constraints Card */}
+          <div className="explanation-card limitations-card">
+            <div className="card-header-bar">
+              <AlertCircleIcon size={16} className="icon-rose flex-shrink-0" />
+              <div>
+                <h5 className="card-title">Financial Constraints &amp; Boundaries</h5>
+                <span className="card-subtitle">Verification limits and safety guardrails</span>
+              </div>
+            </div>
+            <div className="limitations-list-container">
+              {result.explanation.limitations.map((limitation, idx) => (
+                <div key={idx} className="limitation-list-item">
+                  <span className="limitation-bullet" aria-hidden="true">•</span>
+                  <span className="limitation-description">{limitation}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        </>
+      )}
+    </section>
+  );
 }
 
 export function RealOrderClaritySection() {
@@ -161,8 +495,13 @@ export function RealOrderClaritySection() {
       : null;
     const isSameOrderWithFacts = Boolean(existingVerifiedOrderId && existingVerifiedOrderId === targetOrderId);
 
-    if (!isRetry) {
-      setLastSubmittedRequest({ orderId: targetOrderId, prompt: targetPrompt });
+    const updatedTarget = resolveNextLastSubmittedRequest(lastSubmittedRequest, {
+      orderId: targetOrderId,
+      prompt: targetPrompt,
+      isRetry
+    });
+    if (!isRetry && updatedTarget) {
+      setLastSubmittedRequest(updatedTarget);
     }
 
     // Cancel any previous in-flight request before issuing a new one
@@ -179,23 +518,37 @@ export function RealOrderClaritySection() {
     if (!isSameOrderWithFacts) {
       setResult(null);
     } else {
-      setResult(prev => (prev ? { ...prev, explanation: null, success: false } : prev));
+      setResult(prev => (prev ? {
+        ...prev,
+        explanation: null,
+        explanationSource: null,
+        isAiGenerated: false,
+        aiFallbackUsed: false,
+        aiError: null,
+        success: false
+      } : prev));
     }
     setIsLoading(true);
     setLiveAnnouncement(
       isRetry
-        ? `Retrying AI explanation for submitted PayPal order ${targetOrderId}.`
+        ? `Retrying explanation for submitted PayPal order ${targetOrderId}.`
         : `Retrieving verified order facts for PayPal order ${targetOrderId}.`
     );
 
     try {
       const data = await explainOrder(targetOrderId, targetPrompt, { signal: controller.signal });
       if (activeRequestId !== requestIdRef.current) return;
-      setResult({
+      const nextResult = {
         ...data,
         submittedOrderId: targetOrderId
-      });
-      setLiveAnnouncement(`PayPal-verified facts and Gemini AI explanation loaded for order ${targetOrderId}.`);
+      };
+      setResult(nextResult);
+      const provenance = getExplanationProvenance(nextResult);
+      setLiveAnnouncement(
+        provenance.isDeterministic
+          ? `PayPal-verified facts and deterministic rule-based explanation loaded for order ${targetOrderId}.`
+          : `PayPal-verified facts and Gemini AI explanation loaded for order ${targetOrderId}.`
+      );
     } catch (err) {
       if (err?.name === 'AbortError' || activeRequestId !== requestIdRef.current) {
         return;
@@ -204,6 +557,10 @@ export function RealOrderClaritySection() {
       const returnedFacts =
         err?.verifiedFacts && typeof err.verifiedFacts === 'object' && !Array.isArray(err.verifiedFacts)
           ? err.verifiedFacts
+          : null;
+      const returnedIntelligence =
+        err?.intelligence && typeof err.intelligence === 'object' && !Array.isArray(err.intelligence)
+          ? err.intelligence
           : null;
 
       const shouldPreserveExistingFacts =
@@ -214,8 +571,13 @@ export function RealOrderClaritySection() {
       if (returnedFacts) {
         setResult({
           success: false,
+          explanationSource: err.explanationSource || null,
+          isAiGenerated: false,
+          aiFallbackUsed: Boolean(err.aiFallbackUsed),
           model: err.model || null,
+          aiError: err.aiError || null,
           verifiedFacts: returnedFacts,
+          intelligence: returnedIntelligence ?? (isSameOrderWithFacts ? result?.intelligence || null : null),
           explanation: null,
           submittedOrderId: targetOrderId
         });
@@ -319,16 +681,10 @@ export function RealOrderClaritySection() {
   };
 
   const verifiedFacts = result?.verifiedFacts || null;
-  const hasAiExplanation = Boolean(
-    result?.explanation &&
-    typeof result.explanation === 'object' &&
-    !Array.isArray(result.explanation)
-  );
-  const displayedOrderId = verifiedFacts?.orderId || result?.submittedOrderId || 'Not provided by PayPal';
+  const displayedOrderId = verifiedFacts?.orderId || verifiedFacts?.id || result?.submittedOrderId || 'Not provided by PayPal';
   const retryTargetOrderId =
     lastSubmittedRequest?.orderId ||
     (displayedOrderId !== 'Not provided by PayPal' ? displayedOrderId : null);
-  const displayedModelLabel = result?.model ? `Gemini AI (${result.model})` : 'Gemini AI Explanation';
   const errorHint = getExplainErrorGuidance(error, { hasVerifiedFacts: Boolean(verifiedFacts) });
 
   return (
@@ -785,190 +1141,20 @@ export function RealOrderClaritySection() {
             </div>
           </section>
 
-          {/* ================================================================ */}
-          {/* SECTION B: Gemini AI Natural-Language Explanation                 */}
-          {/* ================================================================ */}
-          <section
-            className="results-section gemini-explanation-section"
-            aria-label="Gemini AI Explanation"
-          >
-            <div className="section-header gemini-section-header">
-              <div className="section-title-group">
-                <div className="section-brand-icon gemini-brand-icon" aria-hidden="true">
-                  <SparklesIcon size={20} />
-                </div>
-                <div>
-                  <div className="section-source-pill gemini-source-pill">
-                    <span className="source-label">Source:</span>
-                    <span className="source-name">{displayedModelLabel}</span>
-                    <span className="source-type-badge">AI Clarification Model</span>
-                  </div>
-                  <h3 className="section-heading">Gemini AI Explanation</h3>
-                </div>
-              </div>
+          {/* SECTION A2: Verified Deterministic Transaction Intelligence */}
+          <VerifiedIntelligenceSection intelligence={result?.intelligence} />
 
-              <div className="ai-provenance-status">
-                {isLoading ? (
-                  <>
-                    <RefreshCwIcon size={14} className="icon-purple" />
-                    <span>Consulting Gemini AI...</span>
-                  </>
-                ) : hasAiExplanation ? (
-                  <>
-                    <SparklesIcon size={14} className="icon-purple" />
-                    <span>Structured Output Validated</span>
-                  </>
-                ) : (
-                  <>
-                    <AlertCircleIcon size={14} className="icon-amber" />
-                    <span>AI Unavailable — PayPal Facts Preserved</span>
-                  </>
-                )}
-              </div>
-            </div>
-
-            {isLoading && (
-              <div className="clarity-loading-card clarity-loading-card-inline" aria-live="polite" aria-busy="true">
-                <div className="loading-pulse-animation" aria-hidden="true">
-                  <div className="pulse-ring"></div>
-                  <SparklesIcon size={22} className="loading-pulse-icon" />
-                </div>
-                <h4 className="loading-title">Retrying Gemini AI Explanation</h4>
-                {(activeRequestMeta?.orderId || retryTargetOrderId) && (
-                  <p className="loading-order-badge">
-                    Retrying Order ID:{' '}
-                    <code className="retry-target-code">{activeRequestMeta?.orderId || retryTargetOrderId}</code>
-                  </p>
-                )}
-                <p className="loading-subtitle">
-                  Verified PayPal Sandbox order facts above remain intact while requesting a fresh explanation from Gemini AI...
-                </p>
-              </div>
-            )}
-
-            {!isLoading && !hasAiExplanation && (
-              <div className="clarity-error-card clarity-ai-error-card" role="alert">
-                <div className="error-card-header">
-                  <div className="error-icon-box" aria-hidden="true">
-                    <AlertCircleIcon size={20} />
-                  </div>
-                  <div className="error-content">
-                    <h4 className="error-title">
-                      {error ? 'Gemini AI Explanation Unavailable' : 'AI Explanation Not Loaded'}
-                    </h4>
-                    <p className="error-message">
-                      {error?.message || 'Verified PayPal transaction facts are displayed above, but the AI narrative has not been loaded.'}
-                    </p>
-                    {retryTargetOrderId && (
-                      <p className="retry-target-note">
-                        Retry target (last submitted order):{' '}
-                        <code className="retry-target-code">{retryTargetOrderId}</code>
-                      </p>
-                    )}
-                    {errorHint && <p className="error-hint">{errorHint}</p>}
-                  </div>
-                </div>
-                <div className="error-actions-row">
-                  <button
-                    type="button"
-                    onClick={handleRetry}
-                    disabled={isLoading || !retryTargetOrderId}
-                    className="error-retry-btn"
-                    aria-label={retryTargetOrderId ? `Retry AI explanation for order ${retryTargetOrderId}` : 'Retry AI Explanation'}
-                  >
-                    <RefreshCwIcon size={14} />
-                    <span>Retry AI Explanation</span>
-                  </button>
-                  {error && (
-                    <button
-                      type="button"
-                      onClick={() => setError(null)}
-                      className="error-dismiss-btn"
-                    >
-                      Dismiss Notice
-                    </button>
-                  )}
-                </div>
-              </div>
-            )}
-
-            {!isLoading && hasAiExplanation && (
-              <>
-                {/* AI Safety Boundary Notice */}
-                <div className="gemini-safety-banner">
-                  <InfoIcon size={15} className="safety-icon flex-shrink-0" />
-                  <span className="safety-text">
-                    The natural-language explanation below is generated by Gemini AI grounded strictly on the verified PayPal facts above. It provides plain-language assistance and does not alter, replace, or supersede official PayPal accounting records.
-                  </span>
-                </div>
-
-                {/* Diagnosis Headline */}
-                <div className="gemini-headline-box">
-                  <div className="headline-meta">
-                    <SparklesIcon size={15} />
-                    <span className="headline-label">Diagnosis Headline</span>
-                  </div>
-                  <h4 className="headline-content">{result.explanation.headline}</h4>
-                </div>
-
-                {/* Explanation Summary Card */}
-                <div className="explanation-card summary-card">
-                  <div className="card-header-bar">
-                    <InfoIcon size={16} className="icon-blue flex-shrink-0" />
-                    <h5 className="card-title">Plain-English Status Summary</h5>
-                  </div>
-                  <p className="card-body-paragraph">{result.explanation.summary}</p>
-                </div>
-
-                {/* Financial Impact Card */}
-                <div className="explanation-card financial-card">
-                  <div className="card-header-bar">
-                    <AlertTriangleIcon size={16} className="icon-amber flex-shrink-0" />
-                    <h5 className="card-title">Financial Movement & Settlement Impact</h5>
-                  </div>
-                  <p className="card-body-paragraph">{result.explanation.financialImpact}</p>
-                </div>
-
-                {/* Safe Next Steps Card */}
-                <div className="explanation-card steps-card">
-                  <div className="card-header-bar">
-                    <ShieldCheckIcon size={16} className="icon-emerald flex-shrink-0" />
-                    <div>
-                      <h5 className="card-title">Recommended Safe Next Steps</h5>
-                      <span className="card-subtitle">Factual, safe procedural guidance (non-financial)</span>
-                    </div>
-                  </div>
-                  <div className="steps-list-container">
-                    {result.explanation.safeNextSteps.map((step, idx) => (
-                      <div key={idx} className="step-list-item">
-                        <span className="step-idx-pill">{idx + 1}</span>
-                        <span className="step-description">{step}</span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-
-                {/* Limitations & Constraints Card */}
-                <div className="explanation-card limitations-card">
-                  <div className="card-header-bar">
-                    <AlertCircleIcon size={16} className="icon-rose flex-shrink-0" />
-                    <div>
-                      <h5 className="card-title">Financial Constraints & Boundaries</h5>
-                      <span className="card-subtitle">AI safety rules and verification limits</span>
-                    </div>
-                  </div>
-                  <div className="limitations-list-container">
-                    {result.explanation.limitations.map((limitation, idx) => (
-                      <div key={idx} className="limitation-list-item">
-                        <span className="limitation-bullet" aria-hidden="true">•</span>
-                        <span className="limitation-description">{limitation}</span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              </>
-            )}
-          </section>
+          {/* SECTION B: Hybrid Explanation (Gemini AI or Deterministic Rules) */}
+          <ExplanationResultsSection
+            result={result}
+            error={error}
+            errorHint={errorHint}
+            isLoading={isLoading}
+            activeRequestMeta={activeRequestMeta}
+            retryTargetOrderId={retryTargetOrderId}
+            onRetry={handleRetry}
+            onDismissError={() => setError(null)}
+          />
         </div>
       )}
     </div>

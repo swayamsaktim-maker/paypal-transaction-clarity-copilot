@@ -91,7 +91,7 @@ export const apiService = {
   },
 
   /**
-   * Request an AI explanation for a real PayPal Sandbox order directly from backend
+   * Request a hybrid explanation for a real PayPal Sandbox order directly from backend
    * POST http://localhost:5000/api/copilot/explain
    *
    * This function always calls the real backend endpoint directly. It never uses
@@ -100,7 +100,17 @@ export const apiService = {
    * @param {string} orderId - PayPal Order ID (alphanumeric string)
    * @param {string} prompt - User inquiry or clarification question
    * @param {object} [options] - Optional fetch controls (e.g. { signal })
-   * @returns {Promise<{ success: boolean, model: string|null, verifiedFacts: object, explanation: object }>}
+   * @returns {Promise<{
+   *   success: boolean,
+   *   explanationSource: "gemini"|"deterministic_rules"|null,
+   *   isAiGenerated: boolean,
+   *   aiFallbackUsed: boolean,
+   *   model: string|null,
+   *   aiError: { code: string|null, message: string|null }|null,
+   *   verifiedFacts: object,
+   *   intelligence: object|null,
+   *   explanation: object
+   * }>}
    */
   async explainOrder(orderId, prompt = "Explain the current payment status in simple language.", options = {}) {
     if (!orderId || typeof orderId !== "string" || orderId.trim() === "") {
@@ -192,30 +202,110 @@ export const apiService = {
           break;
       }
 
+      const isPlainObj = (val) => Boolean(val) && typeof val === "object" && !Array.isArray(val);
       const error = new Error(safeMessage);
       error.status = response.status;
       error.code = typeof data?.code === "string" ? data.code : null;
       error.model = typeof data?.model === "string" && data.model.trim() ? data.model.trim() : null;
-      error.verifiedFacts =
-        data?.verifiedFacts && typeof data.verifiedFacts === "object" && !Array.isArray(data.verifiedFacts)
-          ? data.verifiedFacts
+      error.explanationSource =
+        data?.explanationSource === "gemini" || data?.explanationSource === "deterministic_rules"
+          ? data.explanationSource
           : null;
+      error.isAiGenerated = typeof data?.isAiGenerated === "boolean" ? data.isAiGenerated : false;
+      error.aiFallbackUsed = typeof data?.aiFallbackUsed === "boolean" ? data.aiFallbackUsed : false;
+      error.aiError = isPlainObj(data?.aiError)
+        ? {
+            code: typeof data.aiError.code === "string" ? data.aiError.code : null,
+            message: typeof data.aiError.message === "string" ? data.aiError.message : null
+          }
+        : null;
+      error.verifiedFacts = isPlainObj(data?.verifiedFacts) ? data.verifiedFacts : null;
+      error.intelligence = isPlainObj(data?.intelligence) ? data.intelligence : null;
       error.details = data;
       throw error;
     }
 
-    if (!data.verifiedFacts || typeof data.verifiedFacts !== "object") {
+    const isPlainObj = (val) => Boolean(val) && typeof val === "object" && !Array.isArray(val);
+
+    if (!isPlainObj(data.verifiedFacts)) {
       throw new Error("Invalid backend response: verifiedFacts is missing.");
     }
 
-    if (!data.explanation || typeof data.explanation !== "object") {
+    if (!isPlainObj(data.explanation)) {
       throw new Error("Invalid backend response: explanation is missing.");
     }
 
+    if (
+      data.explanationSource !== undefined &&
+      data.explanationSource !== null &&
+      data.explanationSource !== "gemini" &&
+      data.explanationSource !== "deterministic_rules"
+    ) {
+      throw new Error("Invalid backend response: unrecognized explanationSource.");
+    }
+
+    if (data.isAiGenerated !== undefined && typeof data.isAiGenerated !== "boolean") {
+      throw new Error("Invalid backend response: isAiGenerated must be a boolean.");
+    }
+
+    if (data.aiFallbackUsed !== undefined && typeof data.aiFallbackUsed !== "boolean") {
+      throw new Error("Invalid backend response: aiFallbackUsed must be a boolean.");
+    }
+
+    if (data.aiError !== undefined && data.aiError !== null && !isPlainObj(data.aiError)) {
+      throw new Error("Invalid backend response: aiError must be an object or null.");
+    }
+
+    const hasInconsistentSourceFlags =
+      (data.explanationSource === "gemini" && (data.isAiGenerated === false || data.aiFallbackUsed === true)) ||
+      (data.explanationSource === "deterministic_rules" && (data.isAiGenerated === true || data.aiFallbackUsed === false)) ||
+      (data.isAiGenerated === true && data.aiFallbackUsed === true) ||
+      (data.isAiGenerated === false && data.aiFallbackUsed === false);
+
+    if (hasInconsistentSourceFlags) {
+      throw new Error("Invalid backend response: inconsistent AI provenance flags.");
+    }
+
+    const normalizedAiError = isPlainObj(data.aiError)
+      ? {
+          code: typeof data.aiError.code === "string" && data.aiError.code.trim() ? data.aiError.code.trim() : null,
+          message: typeof data.aiError.message === "string" && data.aiError.message.trim() ? data.aiError.message.trim() : null
+        }
+      : null;
+
+    const hasDeterministicMarker =
+      data.explanationSource === "deterministic_rules" ||
+      data.aiFallbackUsed === true ||
+      data.isAiGenerated === false ||
+      normalizedAiError !== null;
+
+    let explanationSource = null;
+    let isAiGenerated = false;
+    let aiFallbackUsed = false;
+    let model = typeof data.model === "string" && data.model.trim() ? data.model.trim() : null;
+
+    if (hasDeterministicMarker) {
+      explanationSource = "deterministic_rules";
+      isAiGenerated = false;
+      aiFallbackUsed = typeof data.aiFallbackUsed === "boolean" ? data.aiFallbackUsed : true;
+      model = null;
+    } else if (data.explanationSource === "gemini" || data.isAiGenerated === true) {
+      explanationSource = "gemini";
+      isAiGenerated = true;
+      aiFallbackUsed = false;
+    }
+
+    const normalizedIntelligence = isPlainObj(data.intelligence) ? data.intelligence : null;
+
     return {
-      success: data.success,
-      model: typeof data.model === "string" && data.model.trim() ? data.model.trim() : null,
+      success: Boolean(data.success),
+      explanationSource,
+      isAiGenerated,
+      aiFallbackUsed,
+      model,
+      aiError: normalizedAiError,
       verifiedFacts: data.verifiedFacts,
+      intelligence: normalizedIntelligence,
       explanation: data.explanation
     };
   },

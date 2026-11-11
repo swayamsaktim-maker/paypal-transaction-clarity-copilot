@@ -6552,3 +6552,330 @@
     font-size: 0.65rem;
   }
 }
+
+/* ==========================================================================
+   Task 7: Verified Transaction Intelligence & Hybrid Provenance UI
+   ========================================================================== */
+.intelligence-summary-section {
+  background: #FFFFFF;
+  border: 2px solid #CBD5E1;
+}
+
+.intelligence-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 10px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid #E2E8F0;
+}
+
+.intelligence-title-wrap {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  min-width: 0;
+  flex: 1 1 240px;
+}
+
+.intelligence-heading {
+  font-size: 0.98rem;
+  font-weight: 800;
+  color: #0F172A;
+  margin: 0;
+}
+
+.intelligence-subheading {
+  font-size: 0.74rem;
+  color: var(--text-muted);
+  margin: 2px 0 0 0;
+  line-height: 1.4;
+}
+
+.intelligence-mode-badge {
+  display: inline-flex;
+  align-items: center;
+  font-size: 0.66rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: #0F766E;
+  background: #F0FDFA;
+  border: 1px solid #99F6E4;
+  padding: 3px 9px;
+  border-radius: 9999px;
+  white-space: nowrap;
+}
+
+.intelligence-missing-note {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  background: #FFFBEB;
+  border: 1px solid #FDE68A;
+  border-radius: var(--radius-md);
+  padding: 9px 12px;
+  font-size: 0.76rem;
+  color: #78350F;
+  line-height: 1.45;
+}
+
+.intelligence-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+
+@media (max-width: 900px) {
+  .intelligence-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 600px) {
+  .intelligence-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.intelligence-item {
+  background: #F8FAFC;
+  border: 1px solid #E2E8F0;
+  border-radius: var(--radius-md);
+  padding: 10px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  min-width: 0;
+}
+
+.intelligence-item-label {
+  font-size: 0.68rem;
+  font-weight: 700;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.intelligence-item-value {
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: #0F172A;
+  line-height: 1.4;
+  overflow-wrap: anywhere;
+}
+
+.intelligence-stage-text {
+  color: #1E3A8A;
+}
+
+.intelligence-state-row {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.intelligence-item-hint {
+  font-size: 0.72rem;
+  color: var(--text-secondary);
+  line-height: 1.38;
+  overflow-wrap: anywhere;
+}
+
+.capture-state-pill,
+.refund-scope-pill,
+.settlement-unverified-pill {
+  display: inline-flex;
+  align-items: center;
+  font-size: 0.72rem;
+  font-weight: 800;
+  padding: 2px 9px;
+  border-radius: 9999px;
+  border: 1px solid transparent;
+}
+
+.capture-state-captured {
+  background: #ECFDF5;
+  color: #065F46;
+  border-color: #A7F3D0;
+}
+
+.capture-state-not_captured {
+  background: #EFF6FF;
+  color: #1D4ED8;
+  border-color: #BFDBFE;
+}
+
+.capture-state-pending {
+  background: #FFFBEB;
+  color: #92400E;
+  border-color: #FDE68A;
+}
+
+.capture-state-unknown {
+  background: #F1F5F9;
+  color: #334155;
+  border-color: #CBD5E1;
+}
+
+.refund-scope-pill {
+  background: #F1F5F9;
+  color: #1E293B;
+  border-color: #CBD5E1;
+}
+
+.settlement-unverified-pill {
+  background: #FFF7ED;
+  color: #9A3412;
+  border-color: #FED7AA;
+}
+
+.intelligence-unit-note {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 0.74rem;
+  font-weight: 600;
+  color: #1E3A8A;
+  background: #EFF6FF;
+  border: 1px solid #BFDBFE;
+  border-radius: var(--radius-md);
+  padding: 7px 11px;
+}
+
+/* Deterministic Rule-Based Explanation Styling (distinct from Gemini AI purple) */
+.deterministic-explanation-section {
+  background: #FFFFFF;
+  border: 2px solid #99F6E4;
+}
+
+.deterministic-brand-icon {
+  background: #0F766E;
+  color: #FFFFFF;
+}
+
+.deterministic-source-pill .source-name {
+  color: #0F766E;
+}
+
+.deterministic-source-pill .source-type-badge {
+  background: #F0FDFA;
+  color: #0F766E;
+  border: 1px solid #99F6E4;
+}
+
+.deterministic-explanation-section .section-heading {
+  color: #134E4A;
+}
+
+.ai-provenance-status.status-deterministic {
+  color: #0F766E;
+  background: #F0FDFA;
+  border-color: #99F6E4;
+}
+
+.icon-teal {
+  color: #0F766E;
+}
+
+.deterministic-safety-banner {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  background: #F0FDFA;
+  border: 1px solid #99F6E4;
+  padding: 10px 14px;
+  border-radius: var(--radius-md);
+  font-size: 0.74rem;
+  color: #115E59;
+  line-height: 1.45;
+}
+
+.deterministic-safety-banner .safety-icon {
+  color: #0F766E;
+}
+
+.deterministic-headline-box {
+  background: linear-gradient(135deg, #F0FDFA 0%, #ECFEFF 100%);
+  border: 1px solid #99F6E4;
+  border-radius: var(--radius-lg);
+  padding: 16px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.deterministic-headline-box .headline-meta {
+  color: #0F766E;
+}
+
+.deterministic-headline-box .headline-content {
+  color: #134E4A;
+}
+
+.fallback-info-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 10px;
+  background: #FFFBEB;
+  border: 1px solid #FDE68A;
+  border-radius: var(--radius-md);
+  padding: 10px 14px;
+}
+
+.fallback-info-content {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  flex: 1 1 240px;
+  min-width: 0;
+}
+
+.fallback-info-text {
+  font-size: 0.76rem;
+  font-weight: 600;
+  color: #92400E;
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+}
+
+.fallback-retry-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: #FFFFFF;
+  color: #92400E;
+  border: 1px solid #F59E0B;
+  border-radius: var(--radius-md);
+  padding: 6px 11px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.fallback-retry-btn:hover:not(:disabled) {
+  background: #FEF3C7;
+}
+
+.fallback-retry-btn:focus-visible {
+  outline: 2px solid var(--pp-blue-primary);
+  outline-offset: 2px;
+}
+
+@media (max-width: 640px) {
+  .deterministic-headline-box {
+    padding: 12px 14px;
+  }
+  .section-source-pill {
+    flex-wrap: wrap;
+  }
+  .fallback-retry-btn {
+    width: 100%;
+    justify-content: center;
+  }
+}
