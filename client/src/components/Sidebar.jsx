@@ -5,7 +5,8 @@ import {
   SettingsIcon, 
   SparklesIcon, 
   ShieldCheckIcon,
-  ChevronRight
+  ChevronRight,
+  CloseIcon
 } from './icons/Icons';
 
 export function Sidebar({ 
@@ -65,8 +66,23 @@ export function Sidebar({
         />
       )}
 
-      <aside className={`sidebar-container ${mobileMenuOpen ? 'mobile-open' : ''}`}>
+      <aside
+        id="primary-sidebar"
+        aria-label="Primary navigation"
+        className={`sidebar-container ${mobileMenuOpen ? 'mobile-open' : ''}`}
+      >
         <div className="sidebar-inner">
+          <div className="sidebar-mobile-header">
+            <span className="sidebar-mobile-title">Navigation</span>
+            <button
+              type="button"
+              onClick={() => setMobileMenuOpen && setMobileMenuOpen(false)}
+              className="sidebar-mobile-close"
+              aria-label="Close navigation menu"
+            >
+              <CloseIcon size={18} />
+            </button>
+          </div>
           {/* Navigation Section */}
           <div className="sidebar-section">
             <div className="sidebar-section-header">MAIN NAVIGATION</div>
@@ -101,10 +117,10 @@ export function Sidebar({
 
           {/* Quick Context Summary */}
           <div className="sidebar-section quick-status-section">
-            <div className="sidebar-section-header">SAFETY METRICS</div>
+            <div className="sidebar-section-header">DEMO SAFETY METRICS</div>
             <div className="sidebar-quick-card">
               <div className="quick-card-row">
-                <span className="quick-card-label">Active Pending Holds</span>
+                <span className="quick-card-label">Sample Pending Holds</span>
                 <span className="quick-card-value font-semibold text-amber">{pendingCount} items</span>
               </div>
               <div className="quick-card-progress">
@@ -114,7 +130,7 @@ export function Sidebar({
                 ></div>
               </div>
               <p className="quick-card-note">
-                All 3 pending holds explained with safe next steps before premature dispute.
+                Simulated demo data ({pendingCount} sample pending holds with illustrative safe next steps).
               </p>
             </div>
           </div>
@@ -126,21 +142,22 @@ export function Sidebar({
                 <ShieldCheckIcon size={18} />
               </div>
               <div>
-                <span className="guard-title">Dispute Guard Active</span>
-                <span className="guard-subtitle">AI Protection Layer</span>
+                <span className="guard-title">Dispute Guard (Demo)</span>
+                <span className="guard-subtitle">Simulated Protection Preview</span>
               </div>
             </div>
             <p className="guard-text">
-              Copilot resolves ambiguous card descriptors and explains clearing times to eliminate chargebacks.
+              Demo dataset illustrates how clarifying descriptors reduces confusion. Use AI Copilot for live PayPal Sandbox lookups.
             </p>
             <div className="guard-tag">
               <SparklesIcon size={12} />
-              <span>18 Chargebacks Prevented</span>
+              <span>18 Chargebacks Prevented (Demo)</span>
             </div>
           </div>
 
           {/* Sidebar Footer */}
           <div className="sidebar-footer">
+            <div className="sidebar-footer-engine">AI Engine: Gemini (On-Demand)</div>
             <div className="sidebar-footer-row">
               <span className="footer-env-dot"></span>
               <span className="footer-env-text">PayPal AI Hackathon 2026</span>

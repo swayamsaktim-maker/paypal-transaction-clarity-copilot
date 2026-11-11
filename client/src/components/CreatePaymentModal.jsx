@@ -9,6 +9,7 @@ import {
   RefreshCwIcon,
   InfoIcon
 } from './icons/Icons';
+import { BACKEND_URL } from '../services/apiService';
 
 export function CreatePaymentModal({ 
   isOpen, 
@@ -73,7 +74,7 @@ export function CreatePaymentModal({
               <h2 id="payment-modal-title" className="modal-title">Create Sandbox Payment</h2>
             </div>
             <p className="modal-subtitle">
-              Initiates a real order on PayPal Sandbox via <code>POST http://localhost:5000/api/paypal/orders</code>
+              Initiates a real order on PayPal Sandbox via <code>POST {BACKEND_URL}/api/paypal/orders</code>
             </p>
           </div>
 
@@ -104,7 +105,7 @@ export function CreatePaymentModal({
               </p>
               <div className="loading-target-chip">
                 <span>Endpoint:</span>
-                <code>POST http://localhost:5000/api/paypal/orders</code>
+                <code>POST {BACKEND_URL}/api/paypal/orders</code>
               </div>
             </div>
           )}
@@ -123,7 +124,7 @@ export function CreatePaymentModal({
                 <div className="error-help-content">
                   <span className="error-help-title">Troubleshooting Connection:</span>
                   <p>
-                    Verify that your backend server is running on <code>http://localhost:5000</code>.
+                    Verify that your backend server is running on <code>{BACKEND_URL}</code>.
                     In a separate terminal, run:
                   </p>
                   <code className="error-help-code">cd server; node index.js</code>

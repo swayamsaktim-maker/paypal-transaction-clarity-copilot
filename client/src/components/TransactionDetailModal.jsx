@@ -37,6 +37,20 @@ export function TransactionDetailModal({ transaction, onClose, onAskCopilot }) {
   };
 
   const isDebit = transaction.direction === 'debit';
+  const isRealSandbox = Boolean(transaction.isRealSandboxOrder);
+
+  const formatMoneyField = (value, currencyCode) => {
+    if (value === null || value === undefined || value === '' || !Number.isFinite(Number(value))) {
+      return 'Not provided by PayPal';
+    }
+    const num = Number(value);
+    const prefix = currencyCode === 'USD' ? '$' : '';
+    return `${prefix}${num.toFixed(2)} ${currencyCode || ''}`.trim();
+  };
+
+  const formattedGrossDisplay = Number.isFinite(Number(transaction.amount))
+    ? `${isDebit ? '-' : '+'}${transaction.currency === 'USD' || !transaction.currency ? '$' : ''}${Number(transaction.amount).toFixed(2)}`
+    : 'Not provided by PayPal';
 
   return (
     <div className="modal-backdrop" onClick={onClose}>
@@ -51,7 +65,9 @@ export function TransactionDetailModal({ transaction, onClose, onAskCopilot }) {
         <div className="modal-header">
           <div className="modal-header-left">
             <div className="modal-title-row">
-              <span className="modal-badge-sandbox">DEMO DATA</span>
+              <span className="modal-badge-sandbox">
+                {isRealSandbox ? 'PAYPAL SANDBOX ORDER' : 'DEMO DATA'}
+              </span>
               <h2 id="modal-title" className="modal-title">Transaction Clarity Inspection</h2>
             </div>
             <div className="modal-tx-meta">
@@ -96,9 +112,9 @@ export function TransactionDetailModal({ transaction, onClose, onAskCopilot }) {
           <div className="modal-hero-financials">
             <div className="modal-amount-display">
               <span className={`modal-amount ${isDebit ? 'text-debit' : 'text-credit'}`}>
-                {isDebit ? '-' : '+'}${transaction.amount.toFixed(2)}
+                {formattedGrossDisplay}
               </span>
-              <span className="modal-currency">{transaction.currency}</span>
+              <span className="modal-currency">{transaction.currency || '—'}</span>
             </div>
             <div className="modal-status-pill">
               <StatusBadge status={transaction.status} size="lg" />
@@ -140,51 +156,71 @@ export function TransactionDetailModal({ transaction, onClose, onAskCopilot }) {
             <div className="modal-ledger-panel">
               {/* Financial Breakdown Table */}
               <div className="ledger-card">
-                <h4 className="ledger-card-title">Accounting & Settlement Breakdown</h4>
+                <h4 className="ledger-card-title">
+                  {isRealSandbox
+                    ? 'PayPal Order & Fee Breakdown (Sandbox Order)'
+                    : 'Sample Accounting Breakdown (DEMO DATA)'}
+                </h4>
                 <div className="ledger-table">
                   <div className="ledger-row">
-                    <span className="ledger-label">Gross Transaction Amount</span>
+                    <span className="ledger-label">Gross Order / Capture Amount</span>
                     <span className="ledger-value font-semibold">
-                      ${transaction.amount.toFixed(2)} {transaction.currency}
+                      {formatMoneyField(transaction.amount, transaction.currency)}
                     </span>
                   </div>
                   <div className="ledger-row">
                     <span className="ledger-label">PayPal Processing Fee</span>
                     <span className="ledger-value text-muted">
-                      {transaction.fee > 0 ? `-$${transaction.fee.toFixed(2)} ${transaction.currency}` : '$0.00 USD'}
+                      {transaction.fee === null || transaction.fee === undefined
+                        ? 'Not provided by PayPal'
+                        : Number(transaction.fee) > 0
+                          ? `-${formatMoneyField(transaction.fee, transaction.currency)}`
+                          : formatMoneyField(0, transaction.currency || 'USD')}
                     </span>
                   </div>
                   <div className="ledger-row-divider"></div>
                   <div className="ledger-row total-row">
-                    <span className="ledger-label">Net Settlement Amount</span>
+                    <span className="ledger-label">
+                      {isRealSandbox ? 'Net Receivable (After PayPal Fee)' : 'Illustrative Net Amount (Demo)'}
+                    </span>
                     <span className="ledger-value font-bold text-navy">
-                      ${transaction.net.toFixed(2)} {transaction.currency}
+                      {formatMoneyField(transaction.net, transaction.currency)}
                     </span>
                   </div>
                 </div>
+                <p style={{ marginTop: '10px', fontSize: '0.78rem', color: 'var(--text-secondary)' }}>
+                  {isRealSandbox
+                    ? 'Reflects PayPal Orders v2 fields only. Fee and net amounts appear only when returned by PayPal; order capture does not verify final bank settlement.'
+                    : 'Simulated fee and net values shown for demo purposes only; not official PayPal or bank settlement records.'}
+                </p>
               </div>
 
               {/* Payment Method Details */}
               <div className="ledger-card">
                 <h4 className="ledger-card-title">Payment Instrument Used</h4>
-                <div className="payment-instrument-box">
-                  <div className="instrument-icon">
-                    {transaction.paymentMethod?.type?.toLowerCase().includes('bank') ? (
-                      <BankIcon size={22} />
-                    ) : (
-                      <CreditCardIcon size={22} />
-                    )}
-                  </div>
-                  <div className="instrument-info">
-                    <div className="instrument-title">
-                      {transaction.paymentMethod?.brand}
-                      {transaction.paymentMethod?.last4 !== 'N/A' && ` (•••• ${transaction.paymentMethod?.last4})`}
+                {transaction.paymentMethod ? (
+                  <div className="payment-instrument-box">
+                    <div className="instrument-icon">
+                      {transaction.paymentMethod?.type?.toLowerCase().includes('bank') ? (
+                        <BankIcon size={22} />
+                      ) : (
+                        <CreditCardIcon size={22} />
+                      )}
                     </div>
-                    <div className="instrument-meta">
-                      Type: {transaction.paymentMethod?.type} • Backup: {transaction.paymentMethod?.backup}
+                    <div className="instrument-info">
+                      <div className="instrument-title">
+                        {transaction.paymentMethod?.brand || 'PayPal'}
+                        {transaction.paymentMethod?.last4 && transaction.paymentMethod.last4 !== 'N/A' && ` (•••• ${transaction.paymentMethod.last4})`}
+                      </div>
+                      <div className="instrument-meta">
+                        Type: {transaction.paymentMethod?.type || 'Not provided by PayPal'}
+                        {transaction.paymentMethod?.backup ? ` • Backup: ${transaction.paymentMethod.backup}` : ''}
+                      </div>
                     </div>
                   </div>
-                </div>
+                ) : (
+                  <p className="protection-details">Payment instrument details were not provided by PayPal Orders v2 for this order.</p>
+                )}
               </div>
 
               {/* Protection Status */}
@@ -194,10 +230,12 @@ export function TransactionDetailModal({ transaction, onClose, onAskCopilot }) {
                   <div className="protection-status-row">
                     <ShieldCheckIcon size={20} className={transaction.protection?.eligible ? 'text-emerald' : 'text-muted'} />
                     <span className="protection-program-name">
-                      {transaction.protection?.program || 'Standard Policy'}
+                      {transaction.protection?.program || 'Not provided by PayPal'}
                     </span>
                     <span className={`protection-badge ${transaction.protection?.eligible ? 'eligible' : 'ineligible'}`}>
-                      {transaction.protection?.eligible ? 'Eligible' : 'Not Applicable'}
+                      {transaction.protection?.eligible
+                        ? (isRealSandbox ? 'Reported Eligible' : 'Demo Eligible')
+                        : (isRealSandbox ? 'Not Verified via Orders v2' : 'Not Applicable')}
                     </span>
                   </div>
                   <p className="protection-details">{transaction.protection?.details}</p>
@@ -209,20 +247,22 @@ export function TransactionDetailModal({ transaction, onClose, onAskCopilot }) {
                 <h4 className="ledger-card-title">Identifiers & Traceability</h4>
                 <div className="identifiers-grid">
                   <div className="ident-item">
-                    <span className="ident-label">PayPal Transaction ID</span>
+                    <span className="ident-label">PayPal Transaction / Order ID</span>
                     <code className="ident-value">{transaction.id}</code>
                   </div>
                   <div className="ident-item">
                     <span className="ident-label">Merchant Invoice ID</span>
-                    <code className="ident-value">{transaction.invoiceId || 'N/A'}</code>
+                    <code className="ident-value">{transaction.invoiceId || 'Not provided by PayPal'}</code>
                   </div>
                   <div className="ident-item">
                     <span className="ident-label">Raw Card Statement String</span>
-                    <code className="ident-value">{transaction.rawDescriptor}</code>
+                    <code className="ident-value">{transaction.rawDescriptor || 'Not provided by PayPal'}</code>
                   </div>
                   <div className="ident-item">
                     <span className="ident-label">Environment</span>
-                    <span className="ident-value text-amber font-semibold">PayPal Sandbox (Demo)</span>
+                    <span className="ident-value text-amber font-semibold">
+                      {isRealSandbox ? 'PayPal Sandbox API' : 'PayPal Sandbox (DEMO DATA)'}
+                    </span>
                   </div>
                 </div>
               </div>
@@ -234,7 +274,11 @@ export function TransactionDetailModal({ transaction, onClose, onAskCopilot }) {
         <div className="modal-footer">
           <div className="modal-footer-disclaimer">
             <span className="disclaimer-dot"></span>
-            <span>Simulated Hackathon Sandbox Record • Real money movement is disabled.</span>
+            <span>
+              {isRealSandbox
+                ? 'PayPal Sandbox Orders v2 record • Capture completion does not prove final bank settlement.'
+                : 'Simulated Demo Record (DEMO DATA) • Not a live bank or PayPal settlement statement.'}
+            </span>
           </div>
 
           <div className="modal-footer-actions">

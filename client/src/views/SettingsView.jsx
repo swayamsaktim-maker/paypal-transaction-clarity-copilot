@@ -8,7 +8,6 @@ import {
 
 export function SettingsView() {
   const [clarityTone, setClarityTone] = useState('reassuring');
-  const [modelChoice, setModelChoice] = useState('gemini-2.5-flash');
   const [autoDecode, setAutoDecode] = useState(true);
   const [disputeGuard, setDisputeGuard] = useState(true);
   const [saveToast, setSaveToast] = useState(false);
@@ -23,24 +22,24 @@ export function SettingsView() {
       <div className="settings-header">
         <div>
           <div className="flex-row-align gap-2">
-            <h1 className="view-title">Copilot Settings & Sandbox Controls</h1>
-            <span className="demo-pill-small">SANDBOX SIMULATION</span>
+            <h1 className="view-title">Copilot Settings & Architecture Status</h1>
+            <span className="demo-pill-small">LOCAL UI PREFERENCES + LIVE API MAP</span>
           </div>
           <p className="view-subtitle">
-            Configure AI explanation parameters, sandbox safety guardrails, and backend integration endpoints.
+            View server-enforced AI guardrails, implemented backend endpoints, and local demo session toggles.
           </p>
         </div>
 
         {saveToast && (
           <div className="settings-toast">
             <CheckmarkIcon size={14} />
-            <span>Preferences Saved to Local Session</span>
+            <span>Demo Preferences Saved to Browser Session</span>
           </div>
         )}
       </div>
 
       <div className="settings-cards-grid">
-        {/* Card 1: AI Model & Clarity Engine */}
+        {/* Card 1: AI Model & Local Demo Preferences */}
         <div className="settings-card">
           <div className="settings-card-header">
             <div className="card-header-icon-wrap">
@@ -48,26 +47,22 @@ export function SettingsView() {
             </div>
             <div>
               <h3 className="card-title">AI Clarity Engine</h3>
-              <p className="card-desc">Configure the AI model and explanation style</p>
+              <p className="card-desc">Server-managed Gemini configuration & local UI preview options</p>
             </div>
           </div>
 
           <div className="settings-form-group">
-            <label className="form-label">Underlying Model</label>
-            <select
-              value={modelChoice}
-              onChange={(e) => setModelChoice(e.target.value)}
-              className="form-select"
-            >
-              <option value="gemini-2.5-flash">Google Gemini 2.5 Flash (Recommended: Low Latency ~0.4s)</option>
-              <option value="gemini-2.5-pro">Google Gemini 2.5 Pro (Deep Banking Reasoning)</option>
-              <option value="gemini-1.5-flash">Google Gemini 1.5 Flash (Legacy)</option>
-            </select>
-            <span className="form-help">Selected model will power the forthcoming backend REST API integration.</span>
+            <label className="form-label">Active Backend Model (Server-Configured)</label>
+            <div className="form-select" aria-readonly="true" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', opacity: 0.9 }}>
+              <span><code>GEMINI_MODEL</code> (server default: <code>gemini-3.8-flash</code>)</span>
+            </div>
+            <span className="form-help">
+              Live <code>POST /api/copilot/explain</code> calls always use the server&apos;s configured <code>GEMINI_MODEL</code> environment variable. The options below are local demo UI preview preferences only.
+            </span>
           </div>
 
           <div className="settings-form-group">
-            <label className="form-label">Clarity Communication Tone</label>
+            <label className="form-label">Demo Workspace Tone (Local Session Only)</label>
             <div className="radio-options-grid">
               <label className={`radio-card ${clarityTone === 'reassuring' ? 'selected' : ''}`}>
                 <input
@@ -101,8 +96,8 @@ export function SettingsView() {
 
           <div className="settings-toggle-row">
             <div className="toggle-text">
-              <span className="toggle-title">Automatic Descriptor Decoding</span>
-              <span className="toggle-sub">Instantly match cryptic statement strings against PayPal's merchant directory</span>
+              <span className="toggle-title">Demo Descriptor Preview (Local UI)</span>
+              <span className="toggle-sub">Local display preference for simulated sample ledger records</span>
             </div>
             <input
               type="checkbox"
@@ -114,8 +109,8 @@ export function SettingsView() {
 
           <div className="settings-toggle-row">
             <div className="toggle-text">
-              <span className="toggle-title">Dispute Guard Active</span>
-              <span className="toggle-sub">Pre-screen confusing charges with AI before suggesting a bank dispute</span>
+              <span className="toggle-title">Demo Dispute Guard Label (Local UI)</span>
+              <span className="toggle-sub">Local display preference in the simulated dashboard preview</span>
             </div>
             <input
               type="checkbox"
@@ -134,7 +129,7 @@ export function SettingsView() {
             </div>
             <div>
               <h3 className="card-title">Sandbox Environment & Safety Policies</h3>
-              <p className="card-desc">Fintech hackathon security and compliance boundaries</p>
+              <p className="card-desc">Actual server-side security and financial accuracy boundaries</p>
             </div>
           </div>
 
@@ -144,9 +139,9 @@ export function SettingsView() {
                 <CheckmarkIcon size={16} />
               </div>
               <div className="guardrail-content">
-                <span className="guardrail-title">Real Money Movement Disabled</span>
+                <span className="guardrail-title">AI Is Read-Only (No AI-Triggered Money Movement)</span>
                 <p className="guardrail-desc">
-                  This prototype is strictly an advisory clarity layer. It does NOT initiate captures, payouts, charges, or withdrawals.
+                  Gemini explanations are strictly advisory and never execute captures, refunds, or payouts. PayPal Sandbox checkout creation and capture require explicit user actions.
                 </p>
               </div>
             </div>
@@ -156,9 +151,9 @@ export function SettingsView() {
                 <CheckmarkIcon size={16} />
               </div>
               <div className="guardrail-content">
-                <span className="guardrail-title">Dispute Guard Interlock Enabled</span>
+                <span className="guardrail-title">PayPal Ground Truth Verification</span>
                 <p className="guardrail-desc">
-                  Premature disputes are intercepted with reassuring guidance before sending buyers to formal claims.
+                  The backend fetches order state directly from PayPal Orders v2 Sandbox API and distinguishes APPROVED, COMPLETED capture, and bank settlement.
                 </p>
               </div>
             </div>
@@ -168,9 +163,9 @@ export function SettingsView() {
                 <CheckmarkIcon size={16} />
               </div>
               <div className="guardrail-content">
-                <span className="guardrail-title">Zero API Key or Secret Exposure</span>
+                <span className="guardrail-title">Zero Client-Side Secret Exposure</span>
                 <p className="guardrail-desc">
-                  No secrets or real PayPal client keys are bundled in client assets. Future calls proxy through secure backend routes.
+                  PayPal and Gemini credentials remain strictly on the Express server and are never bundled into Vite client assets.
                 </p>
               </div>
             </div>
@@ -180,9 +175,9 @@ export function SettingsView() {
                 <CheckmarkIcon size={16} />
               </div>
               <div className="guardrail-content">
-                <span className="guardrail-title">Synthetic Sandbox Data Only</span>
+                <span className="guardrail-title">Clear Demo vs Real Sandbox Separation</span>
                 <p className="guardrail-desc">
-                  All transaction records, merchant identifiers, and bank accounts are simulated mock data for demo purposes.
+                  Sample dashboard records are labeled DEMO DATA, while AI Copilot Order ID lookups query real PayPal Sandbox and preserve verified PayPal facts if Gemini fails.
                 </p>
               </div>
             </div>
@@ -196,8 +191,8 @@ export function SettingsView() {
               <SettingsIcon size={18} />
             </div>
             <div>
-              <h3 className="card-title">Backend Architecture & API Roadmap</h3>
-              <p className="card-desc">Endpoints ready for live PayPal Sandbox REST API and Gemini integration</p>
+              <h3 className="card-title">Implemented Backend Endpoints & Mode Map</h3>
+              <p className="card-desc">Actual Express backend routes vs simulated frontend demo views</p>
             </div>
           </div>
 
@@ -206,29 +201,47 @@ export function SettingsView() {
               <thead>
                 <tr>
                   <th>Method</th>
-                  <th>Endpoint</th>
+                  <th>Endpoint / Mode</th>
                   <th>Service</th>
-                  <th>Status in Prototype</th>
+                  <th>Current Status</th>
                 </tr>
               </thead>
               <tbody>
                 <tr>
+                  <td><span className="http-badge http-post">POST</span></td>
+                  <td><code>/api/copilot/explain</code></td>
+                  <td>PayPal Orders v2 + Gemini API</td>
+                  <td><span className="status-chip chip-ready">Live Backend Endpoint</span></td>
+                </tr>
+                <tr>
                   <td><span className="http-badge http-get">GET</span></td>
-                  <td><code>/api/v1/paypal/transactions</code></td>
-                  <td>PayPal Sandbox REST API</td>
-                  <td><span className="status-chip chip-mock">Simulated (mockTransactions.js)</span></td>
+                  <td><code>/api/paypal/orders/:orderId</code></td>
+                  <td>PayPal Orders v2 Sandbox Lookup</td>
+                  <td><span className="status-chip chip-ready">Live Backend Endpoint</span></td>
                 </tr>
                 <tr>
                   <td><span className="http-badge http-post">POST</span></td>
-                  <td><code>/api/v1/copilot/explain</code></td>
-                  <td>Google Gemini 2.5 API</td>
-                  <td><span className="status-chip chip-ready">Ready for Hookup</span></td>
+                  <td><code>/api/paypal/orders</code></td>
+                  <td>PayPal Sandbox Order Creation</td>
+                  <td><span className="status-chip chip-ready">Live Backend Endpoint</span></td>
                 </tr>
                 <tr>
                   <td><span className="http-badge http-post">POST</span></td>
-                  <td><code>/api/v1/webhooks/paypal</code></td>
-                  <td>PayPal Webhook Listener</td>
-                  <td><span className="status-chip chip-simulated">Simulated in UI</span></td>
+                  <td><code>/api/paypal/orders/:orderId/capture</code></td>
+                  <td>Explicit PayPal Sandbox Capture</td>
+                  <td><span className="status-chip chip-ready">Live Backend Endpoint</span></td>
+                </tr>
+                <tr>
+                  <td><span className="http-badge http-get">GET</span></td>
+                  <td><code>/api/health</code>, <code>/api/paypal/test</code>, <code>/api/gemini/test</code></td>
+                  <td>Server Diagnostics & Connectivity</td>
+                  <td><span className="status-chip chip-ready">Live Backend Endpoint</span></td>
+                </tr>
+                <tr>
+                  <td><span className="http-badge http-get">LOCAL</span></td>
+                  <td><code>mockTransactions.js</code></td>
+                  <td>Dashboard Table & Demo Chat</td>
+                  <td><span className="status-chip chip-mock">Simulated (DEMO DATA)</span></td>
                 </tr>
               </tbody>
             </table>
@@ -240,7 +253,7 @@ export function SettingsView() {
               onClick={handleSave}
               className="save-settings-btn"
             >
-              <span>Save Configuration</span>
+              <span>Save Local Demo Preferences</span>
             </button>
           </div>
         </div>

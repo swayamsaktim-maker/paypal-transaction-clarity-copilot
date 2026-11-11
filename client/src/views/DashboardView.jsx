@@ -31,25 +31,25 @@ export function DashboardView({
         <div className="hero-content">
           <div className="hero-pill">
             <SparklesIcon size={14} />
-            <span>AI Copilot Active • Hackathon Sandbox</span>
+            <span>Demo Dataset + Live PayPal Sandbox</span>
           </div>
           <h1 className="hero-title">PayPal Transaction Clarity Copilot</h1>
           <p className="hero-subtitle">
-            Demystifying ambiguous descriptors, explaining pending holds, and providing safe fintech next steps to eliminate premature disputes.
+            Sample clarity workspace with simulated statement decoding plus real PayPal Orders v2 Sandbox & Gemini explanations in AI Copilot.
           </p>
 
           <div className="hero-quick-stats">
             <div className="hero-stat-item">
               <span className="stat-bullet bullet-emerald"></span>
-              <span className="stat-text"><strong>{completedTransactions.length}</strong> Completed</span>
+              <span className="stat-text"><strong>{completedTransactions.length}</strong> Completed (Demo)</span>
             </div>
             <div className="hero-stat-item">
               <span className="stat-bullet bullet-amber"></span>
-              <span className="stat-text"><strong>{pendingTransactions.length}</strong> Pending Holds (Understood)</span>
+              <span className="stat-text"><strong>{pendingTransactions.length}</strong> Pending Holds (Demo)</span>
             </div>
             <div className="hero-stat-item">
               <span className="stat-bullet bullet-rose"></span>
-              <span className="stat-text"><strong>{failedTransactions.length}</strong> Declined / Safe</span>
+              <span className="stat-text"><strong>{failedTransactions.length}</strong> Declined (Demo)</span>
             </div>
           </div>
 
@@ -69,11 +69,11 @@ export function DashboardView({
         <div className="hero-action-card">
           <div className="hero-action-card-header">
             <ShieldCheckIcon size={18} />
-            <span>AI Dispute Prevention Score</span>
+            <span>Dispute Prevention Preview (DEMO DATA)</span>
           </div>
           <div className="hero-score-val">100%</div>
           <p className="hero-score-text">
-            All pending holds have verified explanations. No user intervention or bank disputes required.
+            Simulated showcase metric for preloaded sample holds. Open AI Copilot to inspect live PayPal Sandbox orders.
           </p>
           <button 
             type="button"
@@ -89,46 +89,46 @@ export function DashboardView({
       {/* 4 Primary Statistics Cards */}
       <div className="stats-grid">
         <StatCard
-          title="Total Analyzed Volume"
+          title="Sample Analyzed Volume (Demo)"
           value={statistics?.totalAnalyzedVolume || "$14,820.50"}
-          subtitle="9 sandbox records processed"
-          trend="100% Verified"
+          subtitle={`${transactions.length} simulated / sandbox rows`}
+          trend="Illustrative Total"
           trendDirection="up"
           variant="primary"
-          badge="Sandbox"
+          badge="DEMO DATA"
           icon={<ArrowUpRight size={18} />}
         />
 
         <StatCard
-          title="AI Clarity Confidence"
+          title="Clarity Confidence (Demo)"
           value={statistics?.clarityConfidenceScore || "99.2%"}
-          subtitle="Gemini Merchant Knowledge Graph"
-          trend="Zero Hallucinations"
+          subtitle="Simulated benchmark metric"
+          trend="Synthetic Preview"
           trendDirection="up"
           variant="success"
-          badge="High"
+          badge="DEMO DATA"
           icon={<SparklesIcon size={18} />}
         />
 
         <StatCard
-          title="Active Pending Holds"
+          title="Sample Pending Holds (Demo)"
           value={`${pendingTransactions.length} Holds`}
-          subtitle="eCheck, Auth & Seller reserve"
-          trend="Self-Resolving"
+          subtitle="Simulated eCheck, Auth & reserve"
+          trend="Demo Scenarios"
           trendDirection="neutral"
           variant="warning"
-          badge="Safe"
+          badge="DEMO DATA"
           icon={<ClockIcon size={18} />}
         />
 
         <StatCard
-          title="Premature Disputes Prevented"
+          title="Disputes Prevented (Demo)"
           value={`${statistics?.disputesAvertedCount || 18} Cases`}
-          subtitle="Chargebacks averted via clarity"
-          trend="Saved ~$450 in fees"
+          subtitle="Simulated chargeback example"
+          trend="Illustrative Savings"
           trendDirection="up"
           variant="info"
-          badge="Shield"
+          badge="DEMO DATA"
           icon={<ShieldCheckIcon size={18} />}
         />
       </div>
@@ -138,9 +138,9 @@ export function DashboardView({
         <div className="spotlight-header">
           <div className="spotlight-title-group">
             <SparklesIcon size={18} className="text-paypal-blue" />
-            <h3 className="spotlight-title">Real-Time Clarity Insights Spotlight</h3>
+            <h3 className="spotlight-title">Sample Clarity Insights Spotlight (Demo Scenarios)</h3>
           </div>
-          <span className="spotlight-badge">AI-Decoded Patterns</span>
+          <span className="spotlight-badge">DEMO DATA — Simulated Patterns</span>
         </div>
 
         <div className="spotlight-grid">

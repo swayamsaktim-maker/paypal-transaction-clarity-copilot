@@ -8,7 +8,8 @@ import {
   RefreshCwIcon,
   InfoIcon
 } from './icons/Icons';
-import { apiService } from '../services/apiService';
+import { apiService, BACKEND_URL } from '../services/apiService';
+import { formatCurrencyAmount } from '../utils/paypalFormatting';
 
 export function PaymentReturnModal({ 
   isOpen, 
@@ -86,12 +87,25 @@ export function PaymentReturnModal({
     setCaptureError(null);
 
     try {
-      await apiService.captureOrder(order.orderId);
+      const captureResponse = await apiService.captureOrder(order.orderId);
       // Re-retrieve verified order from PayPal Sandbox to guarantee verified final state
       const verifiedLatest = await apiService.getOrder(order.orderId);
-      setOrder(verifiedLatest);
+      const mergedCapture = verifiedLatest.capture
+        ? {
+            ...verifiedLatest.capture,
+            sellerReceivableBreakdown:
+              verifiedLatest.capture.sellerReceivableBreakdown ||
+              captureResponse?.capture?.sellerReceivableBreakdown ||
+              null
+          }
+        : (captureResponse?.capture || null);
+      const mergedOrder = {
+        ...verifiedLatest,
+        capture: mergedCapture
+      };
+      setOrder(mergedOrder);
       if (onCaptureSuccess) {
-        onCaptureSuccess(verifiedLatest);
+        onCaptureSuccess(mergedOrder);
       }
     } catch (err) {
       setCaptureError(err.message || "Failed to capture payment.");
@@ -193,7 +207,7 @@ export function PaymentReturnModal({
               </p>
               <div className="loading-target-chip">
                 <span>Endpoint:</span>
-                <code>GET http://localhost:5000/api/paypal/orders/{token}</code>
+                <code>GET {BACKEND_URL}/api/paypal/orders/{token}</code>
               </div>
             </div>
           )}
@@ -290,7 +304,7 @@ export function PaymentReturnModal({
                   </h3>
                   <span className="success-sub">
                     {isCompleted 
-                      ? "Verified capture confirmed on PayPal Sandbox ledger" 
+                      ? "Capture confirmed by PayPal Orders v2 Sandbox API (does not verify final bank settlement)"
                       : isApproved 
                         ? "Buyer has authorized the payment. Ready for capture." 
                         : isPayerActionRequired
@@ -349,7 +363,7 @@ export function PaymentReturnModal({
                   <div className="order-detail-row">
                     <span className="order-detail-label">Amount:</span>
                     <span className="order-amount-value">
-                      ${Number(order.amount.value).toFixed(2)} {order.amount.currency}
+                      {formatCurrencyAmount(order.amount)}
                     </span>
                   </div>
                 )}
@@ -413,7 +427,7 @@ export function PaymentReturnModal({
                   </span>
                   <p>
                     {isCompleted ? (
-                      <>Capture confirmed with status <strong>COMPLETED</strong>. Verified funds are safely recorded in PayPal Sandbox ledger.</>
+                      <>Capture confirmed with status <strong>COMPLETED</strong> by PayPal Sandbox API. Capture completion confirms the payment capture on PayPal, without establishing final bank settlement.</>
                     ) : isApproved ? (
                       <>Buyer approval is confirmed by PayPal. In accordance with Orders v2 architecture, funds are <strong>NOT</strong> yet captured until you click <strong>Capture Payment</strong> below.</>
                     ) : isPayerActionRequired ? (

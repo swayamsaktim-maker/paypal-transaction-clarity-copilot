@@ -37,10 +37,10 @@ export function TransactionsView({
       // Search match
       if (search.trim()) {
         const query = search.toLowerCase();
-        const matchesId = tx.id.toLowerCase().includes(query);
-        const matchesMerchant = tx.resolvedMerchant.toLowerCase().includes(query);
-        const matchesDescriptor = tx.rawDescriptor.toLowerCase().includes(query);
-        const matchesCategory = tx.merchantCategory.toLowerCase().includes(query);
+        const matchesId = tx.id?.toLowerCase().includes(query);
+        const matchesMerchant = tx.resolvedMerchant?.toLowerCase().includes(query);
+        const matchesDescriptor = tx.rawDescriptor?.toLowerCase().includes(query);
+        const matchesCategory = tx.merchantCategory?.toLowerCase().includes(query);
         const matchesSummary = tx.aiExplanation?.claritySummary?.toLowerCase().includes(query);
         return matchesId || matchesMerchant || matchesDescriptor || matchesCategory || matchesSummary;
       }
@@ -54,10 +54,10 @@ export function TransactionsView({
         return new Date(a.date) - new Date(b.date);
       }
       if (sortBy === 'amount-high') {
-        return b.amount - a.amount;
+        return (Number(b.amount) || 0) - (Number(a.amount) || 0);
       }
       if (sortBy === 'amount-low') {
-        return a.amount - b.amount;
+        return (Number(a.amount) || 0) - (Number(b.amount) || 0);
       }
       return 0;
     });
@@ -213,12 +213,12 @@ export function TransactionsView({
                             <StatusBadge status={tx.status} size="sm" />
                           </div>
                           <div className="tx-list-descriptor-row">
-                            <code className="tx-list-code">{tx.rawDescriptor}</code>
+                            <code className="tx-list-code">{tx.rawDescriptor || 'Not provided by PayPal'}</code>
                           </div>
                           <div className="tx-list-date-row">
-                            <span>{tx.dateFormatted}</span>
+                            <span>{tx.dateFormatted || 'Not provided by PayPal'}</span>
                             <span>•</span>
-                            <span>{tx.paymentMethod?.brand}</span>
+                            <span>{tx.paymentMethod?.brand || 'PayPal Sandbox'}</span>
                           </div>
                         </div>
                       </div>
@@ -226,9 +226,11 @@ export function TransactionsView({
                       <div className="tx-list-right">
                         <div className="tx-list-amount-col">
                           <span className={`tx-list-amount ${isDebit ? 'text-debit' : 'text-credit'}`}>
-                            {isDebit ? '-' : '+'}${tx.amount.toFixed(2)}
+                            {Number.isFinite(Number(tx.amount))
+                              ? `${isDebit ? '-' : '+'}${tx.currency === 'USD' || !tx.currency ? '$' : ''}${Number(tx.amount).toFixed(2)}`
+                              : 'Not provided by PayPal'}
                           </span>
-                          <span className="tx-list-currency">{tx.currency}</span>
+                          <span className="tx-list-currency">{tx.currency || '—'}</span>
                         </div>
                         <button
                           type="button"
@@ -260,7 +262,9 @@ export function TransactionsView({
                     <SparklesIcon size={13} />
                     <span>Active Transaction Insight</span>
                   </span>
-                  <span className="inspector-sandbox-badge">DEMO DATA</span>
+                  <span className="inspector-sandbox-badge">
+                    {activeSelectedTx.isRealSandboxOrder ? 'SANDBOX ORDER' : 'DEMO DATA'}
+                  </span>
                 </div>
                 <h3 className="inspector-merchant-title">{activeSelectedTx.resolvedMerchant}</h3>
                 <div className="inspector-meta-row">
@@ -275,7 +279,9 @@ export function TransactionsView({
                 <div className="inspector-amount-block">
                   <span className="inspector-amount-label">Gross Amount</span>
                   <span className={`inspector-amount-value ${activeSelectedTx.direction === 'debit' ? 'text-debit' : 'text-credit'}`}>
-                    {activeSelectedTx.direction === 'debit' ? '-' : '+'}${activeSelectedTx.amount.toFixed(2)} {activeSelectedTx.currency}
+                    {Number.isFinite(Number(activeSelectedTx.amount))
+                      ? `${activeSelectedTx.direction === 'debit' ? '-' : '+'}${activeSelectedTx.currency === 'USD' || !activeSelectedTx.currency ? '$' : ''}${Number(activeSelectedTx.amount).toFixed(2)} ${activeSelectedTx.currency || ''}`.trim()
+                      : 'Not provided by PayPal'}
                   </span>
                 </div>
                 <div className="inspector-status-block">
@@ -288,7 +294,7 @@ export function TransactionsView({
               <div className="inspector-section">
                 <span className="inspector-section-label">Raw Card/Bank Statement String</span>
                 <div className="inspector-descriptor-box">
-                  <code>{activeSelectedTx.rawDescriptor}</code>
+                  <code>{activeSelectedTx.rawDescriptor || 'Not provided by PayPal'}</code>
                 </div>
               </div>
 

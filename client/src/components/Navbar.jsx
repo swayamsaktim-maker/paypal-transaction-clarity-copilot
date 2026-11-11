@@ -18,13 +18,26 @@ export function Navbar({
             className="navbar-mobile-toggle"
             onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
             aria-label="Toggle navigation menu"
+            aria-expanded={Boolean(mobileMenuOpen)}
+            aria-controls="primary-sidebar"
           >
             <span className="hamburger-line"></span>
             <span className="hamburger-line"></span>
             <span className="hamburger-line"></span>
           </button>
 
-          <div className="navbar-brand" onClick={() => onSelectTab('dashboard')} role="button" tabIndex={0}>
+          <div
+            className="navbar-brand"
+            onClick={() => onSelectTab('dashboard')}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault();
+                onSelectTab('dashboard');
+              }
+            }}
+            role="button"
+            tabIndex={0}
+          >
             <div className="navbar-logo-badge">
               <PayPalLogo size={28} />
             </div>
@@ -80,11 +93,11 @@ export function Navbar({
           </button>
 
           {/* AI Status Badge */}
-          <div className="ai-engine-status" title="Active AI engine powering transaction explanations">
+          <div className="ai-engine-status" title="Gemini AI runs on-demand when you query /api/copilot/explain">
             <span className="status-pulse-dot"></span>
             <div className="ai-status-text">
               <span className="ai-status-label">AI Engine</span>
-              <span className="ai-status-engine">Gemini Active</span>
+              <span className="ai-status-engine">Gemini (On-Demand)</span>
             </div>
           </div>
 

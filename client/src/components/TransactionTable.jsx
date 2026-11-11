@@ -44,7 +44,7 @@ export function TransactionTable({
             </span>
           </div>
           <p className="table-subtitle">
-            Every transaction is pre-analyzed with AI statement decoding and safe resolution guidance
+            Simulated ledger dataset with sample explanations (use AI Copilot to query real PayPal Sandbox orders)
           </p>
         </div>
 
@@ -144,20 +144,22 @@ export function TransactionTable({
                     {/* Raw Descriptor */}
                     <td className="td-descriptor">
                       <div className="raw-descriptor-cell">
-                        <code className="raw-code" title={tx.rawDescriptor}>
-                          {tx.rawDescriptor}
+                        <code className="raw-code" title={tx.rawDescriptor || 'Not provided by PayPal'}>
+                          {tx.rawDescriptor || 'Not provided by PayPal'}
                         </code>
                         <span className="clarity-insight-snippet">
-                          {tx.aiExplanation?.headline?.slice(0, 48)}...
+                          {tx.aiExplanation?.headline ? `${tx.aiExplanation.headline.slice(0, 48)}...` : 'Open Details or AI Copilot'}
                         </span>
                       </div>
                     </td>
 
                     {/* Date */}
                     <td className="td-date">
-                      <span className="date-main">{tx.dateFormatted}</span>
+                      <span className="date-main">{tx.dateFormatted || 'Not provided by PayPal'}</span>
                       <span className="payment-method-sub">
-                        {tx.paymentMethod?.brand} {tx.paymentMethod?.last4 !== 'N/A' && `•••• ${tx.paymentMethod?.last4}`}
+                        {tx.paymentMethod?.brand
+                          ? `${tx.paymentMethod.brand}${tx.paymentMethod.last4 && tx.paymentMethod.last4 !== 'N/A' ? ` •••• ${tx.paymentMethod.last4}` : ''}`
+                          : 'PayPal Sandbox Order'}
                       </span>
                     </td>
 
@@ -170,9 +172,11 @@ export function TransactionTable({
                     <td className="td-amount text-right">
                       <div className="amount-cell-wrapper">
                         <span className={`amount-value ${isDebit ? 'amount-debit' : 'amount-credit'}`}>
-                          {isDebit ? '-' : '+'}${tx.amount.toFixed(2)}
+                          {Number.isFinite(Number(tx.amount))
+                            ? `${isDebit ? '-' : '+'}${tx.currency === 'USD' || !tx.currency ? '$' : ''}${Number(tx.amount).toFixed(2)}`
+                            : 'Not provided by PayPal'}
                         </span>
-                        <span className="amount-currency">{tx.currency}</span>
+                        <span className="amount-currency">{tx.currency || '—'}</span>
                       </div>
                     </td>
 
@@ -212,12 +216,12 @@ export function TransactionTable({
       <div className="table-card-footer">
         <div className="footer-left">
           <InfoIcon size={14} />
-          <span>Showing {displayList.length} of {transactions.length} sandbox transactions</span>
+          <span>Showing {displayList.length} of {transactions.length} sample/sandbox records (DEMO DATA)</span>
         </div>
         <div className="footer-right">
           <span className="footer-shield-tag">
             <ShieldCheckIcon size={13} />
-            <span>AI Dispute Guard Active</span>
+            <span>Demo Dispute Guard Preview</span>
           </span>
         </div>
       </div>

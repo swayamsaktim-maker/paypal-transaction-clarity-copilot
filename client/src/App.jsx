@@ -10,7 +10,7 @@ import TransactionsView from './views/TransactionsView';
 import CopilotView from './views/CopilotView';
 import SettingsView from './views/SettingsView';
 import { MOCK_TRANSACTIONS, MOCK_STATISTICS } from './data/mockTransactions';
-import { apiService } from './services/apiService';
+import { apiService, BACKEND_URL } from './services/apiService';
 import './App.css';
 
 function App() {
@@ -56,7 +56,10 @@ function App() {
 
   // Compute live statistics based on current transaction list
   const statistics = useMemo(() => {
-    const totalVolume = transactions.reduce((sum, tx) => sum + tx.amount, 0);
+    const totalVolume = transactions.reduce(
+      (sum, tx) => sum + (Number.isFinite(Number(tx.amount)) ? Number(tx.amount) : 0),
+      0
+    );
     const pendingCount = transactions.filter(t => t.status === 'Pending').length;
     const completedCount = transactions.filter(t => t.status === 'Completed').length;
     const failedCount = transactions.filter(t => t.status === 'Failed').length;
@@ -78,11 +81,11 @@ function App() {
     if (!searchQuery.trim()) return transactions;
     const q = searchQuery.toLowerCase();
     return transactions.filter(tx => 
-      tx.id.toLowerCase().includes(q) ||
-      tx.resolvedMerchant.toLowerCase().includes(q) ||
-      tx.rawDescriptor.toLowerCase().includes(q) ||
-      tx.status.toLowerCase().includes(q) ||
-      tx.merchantCategory.toLowerCase().includes(q)
+      tx.id?.toLowerCase().includes(q) ||
+      tx.resolvedMerchant?.toLowerCase().includes(q) ||
+      tx.rawDescriptor?.toLowerCase().includes(q) ||
+      tx.status?.toLowerCase().includes(q) ||
+      tx.merchantCategory?.toLowerCase().includes(q)
     );
   }, [transactions, searchQuery]);
 
@@ -119,7 +122,7 @@ function App() {
       setCreateOrderState({
         isOpen: true,
         isLoading: false,
-        error: err.message || "Failed to connect to backend at http://localhost:5000.",
+        error: err.message || `Failed to connect to backend at ${BACKEND_URL}.`,
         orderData: null
       });
     }
@@ -212,54 +215,88 @@ function App() {
   }, [returnOrderState.isOpen]);
 
   const handleCaptureSuccess = (capturedOrder) => {
-    showToast(`Payment capture confirmed: $${Number(capturedOrder.amount?.value || 10).toFixed(2)} USD`);
+    const parseOptionalNumber = (value) => {
+      if (value === null || value === undefined || value === '') return null;
+      const numeric = Number(value);
+      return Number.isFinite(numeric) ? numeric : null;
+    };
+
+    const amountObj = capturedOrder?.amount || capturedOrder?.capture?.amount || null;
+    const grossAmount = parseOptionalNumber(amountObj?.value);
+    const currencyCode = amountObj?.currency || 'USD';
+    const breakdown = capturedOrder?.capture?.sellerReceivableBreakdown || null;
+    const feeAmount = parseOptionalNumber(breakdown?.paypalFee?.value);
+    const netAmount = parseOptionalNumber(breakdown?.netAmount?.value);
+
+    const amountToastText = grossAmount !== null
+      ? `${grossAmount.toFixed(2)} ${currencyCode}`
+      : 'verified amount';
+    showToast(`PayPal capture confirmed: ${amountToastText}`);
+
+    const resolvedDateIso =
+      capturedOrder?.capture?.updateTime ||
+      capturedOrder?.updateTime ||
+      capturedOrder?.createTime ||
+      new Date().toISOString();
+
+    const payerEmail = capturedOrder?.payer?.emailAddress || null;
+    const payeeLabel = capturedOrder?.payee?.emailAddress || capturedOrder?.payee?.merchantId || 'PayPal Sandbox Merchant';
+
     const newCapturedTx = {
       id: capturedOrder.orderId,
-      invoiceId: `INV-SANDBOX-${capturedOrder.orderId.slice(-6)}`,
-      date: new Date().toISOString(),
-      dateFormatted: "Just now",
-      rawDescriptor: "PAYPAL *CLARITY HACKATHON DEMO",
-      resolvedMerchant: "PayPal Clarity Copilot",
-      merchantCategory: "Software & Technology / Payment Verification",
-      merchantLogo: "shield",
-      type: "payment",
-      direction: "credit",
-      amount: Number(capturedOrder.amount?.value || 10.00),
-      currency: capturedOrder.amount?.currency || "USD",
-      fee: Number(capturedOrder.capture?.sellerReceivableBreakdown?.paypalFee?.value || 0.49),
-      net: Number(capturedOrder.capture?.sellerReceivableBreakdown?.netAmount?.value || 9.51),
-      status: "Completed",
-      paymentMethod: {
-        type: "PayPal Balance",
-        brand: "PayPal Sandbox Wallet",
-        last4: "9901",
-        backup: "Bank Account"
-      },
+      isRealSandboxOrder: true,
+      invoiceId: null,
+      date: resolvedDateIso,
+      dateFormatted: new Date(resolvedDateIso).toLocaleString('en-US', {
+        month: 'short',
+        day: 'numeric',
+        year: 'numeric',
+        hour: 'numeric',
+        minute: '2-digit'
+      }),
+      rawDescriptor: null,
+      resolvedMerchant: payeeLabel,
+      merchantCategory: 'PayPal Orders v2 Sandbox Order',
+      merchantLogo: 'shield',
+      type: 'payment',
+      direction: 'credit',
+      amount: grossAmount,
+      currency: currencyCode,
+      fee: feeAmount,
+      net: netAmount,
+      status: capturedOrder?.status === 'COMPLETED' || capturedOrder?.isCompleted ? 'Completed' : (capturedOrder?.status || 'Completed'),
+      paymentMethod: payerEmail ? {
+        type: 'PayPal Sandbox Account',
+        brand: 'PayPal',
+        last4: 'N/A',
+        backup: 'Not provided by PayPal Orders v2'
+      } : null,
       protection: {
-        eligible: true,
-        program: "PayPal Seller Protection",
-        details: "Confirmed captured payment via Sandbox Orders v2."
+        eligible: false,
+        program: 'Not provided by PayPal Orders v2',
+        details: 'Capture completion confirms the PayPal order capture state, without asserting final bank settlement or seller protection eligibility.'
       },
       aiExplanation: {
-        headline: "Verified Sandbox Payment successfully captured via Orders v2 API",
-        confidence: 100.0,
-        descriptorMeaning: "Official PayPal Clarity Sandbox Hackathon payment transaction.",
-        statusReason: "Order capture completed and verified directly with PayPal Sandbox ledger.",
-        riskAssessment: "Safe. Verified buyer authorization and completed capture.",
-        claritySummary: `Successfully captured $${Number(capturedOrder.amount?.value || 10).toFixed(2)} USD from buyer account.`,
+        headline: 'PayPal Sandbox capture confirmed via Orders v2 API (no AI explanation generated yet)',
+        confidence: null,
+        descriptorMeaning: 'Card/bank statement descriptor is not returned by PayPal Orders v2 order lookup.',
+        statusReason: 'PayPal Sandbox confirmed capture completion (COMPLETED). Capture completion confirms the capture on PayPal, but does not establish final bank settlement.',
+        riskAssessment: 'Verified directly from PayPal Orders v2 response. Query this Order ID in AI Copilot for a Gemini explanation.',
+        claritySummary: grossAmount !== null
+          ? `PayPal confirmed capture completion for ${grossAmount.toFixed(2)} ${currencyCode}. PayPal fee breakdown and bank settlement details depend on official PayPal merchant statements.`
+          : 'PayPal confirmed capture completion. Open AI Copilot to inspect verified order facts.',
         timeline: [
-          { title: "Order created (intent: CAPTURE)", time: "Earlier", status: "done" },
-          { title: "Buyer authorized on PayPal", time: "Earlier", status: "done" },
-          { title: "Payment captured successfully", time: "Just now", status: "done" }
-        ]
+          capturedOrder?.createTime ? { title: 'Order created on PayPal', time: capturedOrder.createTime, status: 'done' } : null,
+          { title: 'Capture confirmed by PayPal Orders v2', time: capturedOrder?.capture?.updateTime || capturedOrder?.updateTime || 'Confirmed', status: 'done' }
+        ].filter(Boolean)
       },
       safeNextSteps: [
         {
-          id: "step-cap-1",
-          title: "Verified capture recorded",
-          description: "Funds are confirmed in the PayPal Sandbox merchant account.",
-          severity: "safe",
-          actionText: "View Transaction"
+          id: 'step-cap-1',
+          title: 'Capture confirmed in PayPal Sandbox',
+          description: 'Review fee and settlement details directly in your PayPal merchant account or query this Order ID in AI Copilot.',
+          severity: 'safe',
+          actionText: 'Open AI Copilot'
         }
       ]
     };

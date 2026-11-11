@@ -7,10 +7,19 @@
  * Never hardcodes PayPal secrets in the frontend.
  */
 
-import { MOCK_TRANSACTIONS, MOCK_STATISTICS, COPILOT_SAMPLE_QUESTIONS } from '../data/mockTransactions';
+import { MOCK_TRANSACTIONS, MOCK_STATISTICS, COPILOT_SAMPLE_QUESTIONS } from '../data/mockTransactions.js';
 
-const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:5000';
-const USE_MOCK = import.meta.env.VITE_USE_MOCK_API !== 'false';
+export const BACKEND_URL = (import.meta.env?.VITE_BACKEND_URL || 'http://localhost:5000').trim().replace(/\/+$/, '');
+const USE_MOCK = import.meta.env?.VITE_USE_MOCK_API !== 'false';
+
+/**
+ * Validate PayPal Order ID format consistently with backend validator.
+ * Matches alphanumeric, hyphen, and underscore strings between 10 and 40 characters.
+ */
+export function isValidPayPalOrderId(orderId) {
+  if (!orderId || typeof orderId !== 'string') return false;
+  return /^[A-Za-z0-9_-]{10,40}$/.test(orderId.trim());
+}
 
 export const apiService = {
   /**
@@ -79,6 +88,136 @@ export const apiService = {
     }
 
     return data;
+  },
+
+  /**
+   * Request an AI explanation for a real PayPal Sandbox order directly from backend
+   * POST http://localhost:5000/api/copilot/explain
+   *
+   * This function always calls the real backend endpoint directly. It never uses
+   * USE_MOCK, mock transactions, or synthetic fallback data.
+   *
+   * @param {string} orderId - PayPal Order ID (alphanumeric string)
+   * @param {string} prompt - User inquiry or clarification question
+   * @param {object} [options] - Optional fetch controls (e.g. { signal })
+   * @returns {Promise<{ success: boolean, model: string|null, verifiedFacts: object, explanation: object }>}
+   */
+  async explainOrder(orderId, prompt = "Explain the current payment status in simple language.", options = {}) {
+    if (!orderId || typeof orderId !== "string" || orderId.trim() === "") {
+      throw new Error("A valid PayPal order ID is required.");
+    }
+
+    const trimmedOrderId = orderId.trim();
+    if (!isValidPayPalOrderId(trimmedOrderId)) {
+      throw new Error("Invalid PayPal order ID format. Use 10 to 40 alphanumeric, hyphen, or underscore characters.");
+    }
+
+    if (!prompt || typeof prompt !== "string" || prompt.trim() === "") {
+      throw new Error("A prompt question is required.");
+    }
+
+    const trimmedPrompt = prompt.trim();
+
+    if (trimmedPrompt.length > 500) {
+      throw new Error("Prompt exceeds maximum allowed length of 500 characters.");
+    }
+
+    let response;
+    try {
+      response = await fetch(`${BACKEND_URL}/api/copilot/explain`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          orderId: trimmedOrderId,
+          prompt: trimmedPrompt
+        }),
+        signal: options?.signal
+      });
+    } catch (netError) {
+      if (netError?.name === "AbortError") {
+        throw netError;
+      }
+      const networkError = new Error(
+        `Unable to connect to the backend server. Please verify that the server is running at ${BACKEND_URL}. (${netError.message})`,
+        { cause: netError }
+      );
+      networkError.isNetworkError = true;
+      throw networkError;
+    }
+
+    let data;
+    const contentType = response.headers.get("content-type") || "";
+    if (contentType.includes("application/json")) {
+      try {
+        data = await response.json();
+      } catch {
+        data = null;
+      }
+    } else {
+      try {
+        const text = await response.text();
+        data = text ? { message: text } : null;
+      } catch {
+        data = null;
+      }
+    }
+
+    if (!response.ok || !data || !data.success) {
+      const serverMessage = data?.error || data?.message;
+      let safeMessage;
+
+      switch (response.status) {
+        case 400:
+          safeMessage = serverMessage || "Invalid request. Please check the order ID and prompt.";
+          break;
+        case 404:
+          safeMessage = serverMessage || "PayPal order not found. Please verify the order ID in PayPal Sandbox.";
+          break;
+        case 429:
+          safeMessage = serverMessage || "Gemini rate limit or quota exceeded. Please try again later or check your API quota.";
+          break;
+        case 502:
+          safeMessage = serverMessage || "AI explanation failed response schema validation or returned a malformed response.";
+          break;
+        case 503:
+          safeMessage = serverMessage || "The AI service is temporarily unavailable due to high demand. Please try again shortly.";
+          break;
+        case 504:
+          safeMessage = serverMessage || "The AI explanation request timed out. Please try again.";
+          break;
+        default:
+          safeMessage = serverMessage || `Server returned error (${response.status}: ${response.statusText || "Unknown"}).`;
+          break;
+      }
+
+      const error = new Error(safeMessage);
+      error.status = response.status;
+      error.code = typeof data?.code === "string" ? data.code : null;
+      error.model = typeof data?.model === "string" && data.model.trim() ? data.model.trim() : null;
+      error.verifiedFacts =
+        data?.verifiedFacts && typeof data.verifiedFacts === "object" && !Array.isArray(data.verifiedFacts)
+          ? data.verifiedFacts
+          : null;
+      error.details = data;
+      throw error;
+    }
+
+    if (!data.verifiedFacts || typeof data.verifiedFacts !== "object") {
+      throw new Error("Invalid backend response: verifiedFacts is missing.");
+    }
+
+    if (!data.explanation || typeof data.explanation !== "object") {
+      throw new Error("Invalid backend response: explanation is missing.");
+    }
+
+    return {
+      success: data.success,
+      model: typeof data.model === "string" && data.model.trim() ? data.model.trim() : null,
+      verifiedFacts: data.verifiedFacts,
+      explanation: data.explanation
+    };
   },
 
   /**
@@ -153,5 +292,7 @@ export const apiService = {
     return COPILOT_SAMPLE_QUESTIONS;
   }
 };
+
+export const explainOrder = (...args) => apiService.explainOrder(...args);
 
 export default apiService;

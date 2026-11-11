@@ -1,16 +1,38 @@
-# React + Vite
+# PayPal Transaction Clarity Copilot — Frontend
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+React + Vite frontend for inspecting simulated demo records (`DEMO DATA`), PayPal Sandbox checkout flows, and live PayPal Orders v2 + Gemini clarity explanations.
 
-Currently, two official plugins are available:
+## Environment Variables (`client/.env`, optional)
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+Create `client/.env` inside this directory if you need custom settings:
 
-## React Compiler
+```env
+VITE_BACKEND_URL=http://localhost:5000
+VITE_USE_MOCK_API=false
+```
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+- `VITE_BACKEND_URL`: Express backend base URL (defaults to `http://localhost:5000`).
+- `VITE_USE_MOCK_API`: Defaults to mock mode when omitted. Set `VITE_USE_MOCK_API=false` to enable real PayPal order creation, verification, and capture flows. The **Real PayPal Sandbox Order** AI Copilot explanation endpoint (`POST /api/copilot/explain`) always calls the real backend independently of `VITE_USE_MOCK_API`.
 
-## Expanding the ESLint configuration
+## Commands
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+Run all commands from the `client/` directory:
+
+```bash
+# Install dependencies
+npm install
+
+# Start Vite development server (http://localhost:5173)
+npm run dev
+
+# Run ESLint checks
+npm run lint
+
+# Build production bundle (outputs to dist/)
+npm run build
+
+# Preview production build locally
+npm run preview
+```
+
+For full-stack setup and Express backend configuration, see the root [README.md](../README.md).

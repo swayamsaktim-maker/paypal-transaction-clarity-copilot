@@ -8,31 +8,34 @@ import {
   SparklesIcon,
   ExternalLinkIcon
 } from './icons/Icons';
+import { formatCurrencyAmount } from '../utils/paypalFormatting';
 
 export function SafeNextSteps({ steps = [], transaction, onAskCopilot }) {
   const [copiedId, setCopiedId] = useState(null);
   const [completedSteps, setCompletedSteps] = useState({});
 
   const handleCopySummary = () => {
-    if (!transaction) return;
-    const summaryText = `[PayPal Clarity Copilot] ${transaction.resolvedMerchant} (${transaction.id})
-Status: ${transaction.status} | Amount: ${transaction.direction === 'debit' ? '-' : '+'}$${transaction.amount.toFixed(2)} ${transaction.currency}
-AI Explanation: ${transaction.aiExplanation?.claritySummary || 'N/A'}
-Recommended Next Steps:
+    if (!transaction || !navigator.clipboard?.writeText) return;
+    const prefix = transaction.direction === 'debit' ? '-' : '+';
+    const formattedAmount = formatCurrencyAmount(transaction.amount, transaction.currency);
+    const summaryText = `[PayPal Clarity Copilot — DEMO DATA] ${transaction.resolvedMerchant} (${transaction.id})
+Status: ${transaction.status} | Amount: ${prefix}${formattedAmount}
+Simulated Explanation: ${transaction.aiExplanation?.claritySummary || 'N/A'}
+Sample Next Steps (Demo Guidance):
 ${steps.map((s, idx) => `${idx + 1}. ${s.title}: ${s.description}`).join('\n')}`;
 
     navigator.clipboard.writeText(summaryText).then(() => {
       setCopiedId('summary');
       setTimeout(() => setCopiedId(null), 2200);
     }).catch(() => {
-      // fallback
+      setCopiedId(null);
     });
   };
 
-  const toggleStepDone = (id) => {
+  const toggleStepDone = (stepKey) => {
     setCompletedSteps(prev => ({
       ...prev,
-      [id]: !prev[id]
+      [stepKey]: !prev[stepKey]
     }));
   };
 
@@ -44,9 +47,9 @@ ${steps.map((s, idx) => `${idx + 1}. ${s.title}: ${s.description}`).join('\n')}`
             <ShieldCheckIcon size={18} />
           </div>
           <div>
-            <h4 className="safe-steps-title">Suggested Safe Next Steps</h4>
+            <h4 className="safe-steps-title">Suggested Safe Next Steps (DEMO DATA)</h4>
             <p className="safe-steps-subtitle">
-              Verified fintech guidance designed to prevent duplicate debits, delays & premature disputes
+              Simulated educational guidance for demo transactions — verify real payments independently
             </p>
           </div>
         </div>
@@ -56,6 +59,7 @@ ${steps.map((s, idx) => `${idx + 1}. ${s.title}: ${s.description}`).join('\n')}`
           onClick={handleCopySummary}
           className="copy-summary-btn"
           title="Copy plain-English explanation and steps to clipboard"
+          aria-label="Copy demo summary and guidance steps"
         >
           {copiedId === 'summary' ? (
             <>
@@ -69,11 +73,15 @@ ${steps.map((s, idx) => `${idx + 1}. ${s.title}: ${s.description}`).join('\n')}`
             </>
           )}
         </button>
+        <span className="sr-only" aria-live="polite">
+          {copiedId === 'summary' ? 'Guidance summary copied to clipboard.' : ''}
+        </span>
       </div>
 
       <div className="safe-steps-list">
         {steps.map((step, idx) => {
-          const isDone = !!completedSteps[step.id];
+          const stepKey = `${transaction?.id || 'tx'}-${step.id ?? idx}`;
+          const isDone = !!completedSteps[stepKey];
           const severityIcon = step.severity === 'warning' 
             ? <AlertTriangleIcon size={16} /> 
             : step.severity === 'safe'
@@ -82,15 +90,17 @@ ${steps.map((s, idx) => `${idx + 1}. ${s.title}: ${s.description}`).join('\n')}`
 
           return (
             <div 
-              key={step.id || idx} 
+              key={step.id ?? idx}
               className={`safe-step-card safe-step-${step.severity || 'info'} ${isDone ? 'step-completed' : ''}`}
             >
               <div className="safe-step-left">
                 <button
                   type="button"
-                  onClick={() => toggleStepDone(step.id)}
+                  onClick={() => toggleStepDone(stepKey)}
                   className={`step-checkbox ${isDone ? 'checked' : ''}`}
                   title={isDone ? "Mark as pending" : "Mark as reviewed"}
+                  aria-label={`${isDone ? 'Mark pending' : 'Mark reviewed'}: ${step.title || `Step ${idx + 1}`}`}
+                  aria-pressed={isDone}
                 >
                   {isDone ? <CheckmarkIcon size={14} /> : <span className="step-number">{idx + 1}</span>}
                 </button>

@@ -23,12 +23,16 @@ export function AIExplanationPanel({ transaction, onAskCopilot }) {
     );
   }
 
-  const { aiExplanation, rawDescriptor, resolvedMerchant, status, safeNextSteps } = transaction;
+  const { aiExplanation, rawDescriptor, resolvedMerchant, status, safeNextSteps, isRealSandboxOrder } = transaction;
+  const hasConfidence = aiExplanation?.confidence !== null && aiExplanation?.confidence !== undefined && Number.isFinite(Number(aiExplanation.confidence));
 
   const handleCopyRaw = () => {
+    if (!rawDescriptor || !navigator.clipboard?.writeText) return;
     navigator.clipboard.writeText(rawDescriptor).then(() => {
       setCopiedRaw(true);
       setTimeout(() => setCopiedRaw(false), 2000);
+    }).catch(() => {
+      setCopiedRaw(false);
     });
   };
 
@@ -39,11 +43,14 @@ export function AIExplanationPanel({ transaction, onAskCopilot }) {
         <div className="ai-badge-row">
           <div className="ai-copilot-tag">
             <SparklesIcon size={15} />
-            <span>AI Clarity Diagnosis</span>
+            <span>{isRealSandboxOrder ? 'PayPal Sandbox Order Summary' : 'AI Clarity Diagnosis (DEMO DATA)'}</span>
           </div>
-          <div className="ai-confidence-pill" title="AI model confidence score based on merchant knowledge graph">
+          <div
+            className="ai-confidence-pill"
+            title={hasConfidence ? 'Simulated confidence score for demo scenario' : 'Captured via PayPal Orders v2 Sandbox API'}
+          >
             <span className="confidence-dot"></span>
-            <span>{aiExplanation?.confidence || 99.1}% Confidence</span>
+            <span>{hasConfidence ? `Demo Score: ${aiExplanation.confidence}%` : 'PayPal Orders v2 Record'}</span>
           </div>
         </div>
 
@@ -54,36 +61,48 @@ export function AIExplanationPanel({ transaction, onAskCopilot }) {
       {/* Cryptic Statement Descriptor Resolution */}
       <div className="descriptor-resolution-card">
         <div className="resolution-card-header">
-          <span className="resolution-card-title">Statement Descriptor Decoded</span>
-          <span className="resolution-chip">Resolved via Global Merchant Registry</span>
+          <span className="resolution-card-title">
+            {isRealSandboxOrder ? 'Statement Descriptor Details' : 'Statement Descriptor Decoded (DEMO DATA)'}
+          </span>
+          <span className="resolution-chip">
+            {isRealSandboxOrder ? 'PayPal Orders v2 Metadata' : 'Simulated Merchant Lookup (Demo)'}
+          </span>
         </div>
 
         <div className="descriptor-compare-grid">
           <div className="descriptor-box raw-box">
             <div className="box-label-row">
               <span className="box-label">Raw Card/Bank Statement Text</span>
-              <button 
-                type="button" 
-                onClick={handleCopyRaw} 
-                className="copy-descriptor-mini"
-                title="Copy raw descriptor"
-              >
-                {copiedRaw ? <CheckmarkIcon size={13} /> : <CopyIcon size={13} />}
-                <span>{copiedRaw ? "Copied" : "Copy"}</span>
-              </button>
+              {rawDescriptor && (
+                <button
+                  type="button"
+                  onClick={handleCopyRaw}
+                  className="copy-descriptor-mini"
+                  title="Copy raw descriptor"
+                  aria-label="Copy raw statement descriptor"
+                >
+                  {copiedRaw ? <CheckmarkIcon size={13} /> : <CopyIcon size={13} />}
+                  <span>{copiedRaw ? "Copied" : "Copy"}</span>
+                </button>
+              )}
+              <span className="sr-only" aria-live="polite">
+                {copiedRaw ? 'Raw descriptor copied to clipboard.' : ''}
+              </span>
             </div>
-            <code className="raw-descriptor-text">{rawDescriptor}</code>
-            <span className="descriptor-footnote">Often appears confusing on bank statements</span>
+            <code className="raw-descriptor-text">{rawDescriptor || 'Not provided by PayPal Orders v2'}</code>
+            <span className="descriptor-footnote">
+              {rawDescriptor ? 'Often appears confusing on bank statements' : 'Order lookup does not return bank statement text'}
+            </span>
           </div>
 
           <div className="descriptor-arrow">➔</div>
 
           <div className="descriptor-box resolved-box">
             <div className="box-label-row">
-              <span className="box-label">Verified Merchant Entity</span>
+              <span className="box-label">{isRealSandboxOrder ? 'Payee / Merchant Record' : 'Simulated Merchant Entity'}</span>
               <span className="verified-check">
                 <CheckCircleIcon size={13} />
-                <span>Verified</span>
+                <span>{isRealSandboxOrder ? 'Sandbox Order' : 'Demo Sample'}</span>
               </span>
             </div>
             <div className="resolved-merchant-name">{resolvedMerchant}</div>
@@ -111,9 +130,13 @@ export function AIExplanationPanel({ transaction, onAskCopilot }) {
           </div>
           <div>
             <h4 className="status-reason-title">
-              Why is this marked <span className={`status-highlight status-${status.toLowerCase()}`}>{status}</span>?
+              Why is this marked <span className={`status-highlight status-${(status || 'unknown').toLowerCase()}`}>{status || 'UNKNOWN'}</span>?
             </h4>
-            <span className="status-reason-subtitle">Plain-English banking settlement breakdown</span>
+            <span className="status-reason-subtitle">
+              {isRealSandboxOrder
+                ? 'PayPal Orders v2 capture status clarification (capture completion does not prove final bank settlement)'
+                : 'Simulated status & payment stage breakdown (DEMO DATA)'}
+            </span>
           </div>
         </div>
 
